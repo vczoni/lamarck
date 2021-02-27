@@ -54,7 +54,7 @@ class Population:
         self.generation = 0
         self.genes = list(genome_blueprint)
         self.get_creature = CreatureGetter(self)
-        self.fitness = Fitness(self)
+        self.apply_fitness = FitnessBuilder(self)
 
     def __getitem__(self, key):
         return self.get_creature.from_index(key)
@@ -84,17 +84,34 @@ class Population:
 
     def copy(self):
         new_pop = Population(self.genome_blueprint)
-        new_pop.datasets.absorb(self.datasets)
+        new_pop.datasets._absorb(self.datasets)
         return new_pop
 
     def add_outputs(self, output_df):
+        """
+        Parameters
+        ----------
+        :output_df:     `DataFrame`
+        """
         self.datasets._create_output(output_df)
 
-    def add_fitness(self, fitness_df):
-        if self.datasets.fitness is None:
-            self.datasets._create_fitness(fitness_df)
-        else:
-            self.datasets._increment_fitness(fitness_df)
+    def add_fitness(self, fitness_df, objectives):
+        """
+        Parameters
+        ----------
+        :fitness_df:    `DataFrame`
+        :objectives:    `list`
+        """
+        self.datasets._create_fitness(fitness_df, objectives)
+
+    def reset_fitness_objectives(self, fitness_cols, objectives):
+        """
+        Parameters
+        ----------
+        :fitness_cols:  `list`
+        :objectives:    `list`
+        """
+        self.datasets._set_fitness_objectives(fitness_cols, objectives)
 
 
 class Populator:
@@ -102,10 +119,12 @@ class Populator:
         self._pop = population
 
     def add_creature(self, gene):
-        pass
+        """
+        """
 
     def from_creature_list(self, creature_list):
-        pass
+        """
+        """
 
     def from_gene_dataframe(self, dataframe):
         """
@@ -142,34 +161,57 @@ class PopulationDatasets:
         self._pop = population
         self._inputcols = None
         self._outputcols = None
+        self._objectives = None
+        self._fitnesscols = None
+        self._index = None
         self.main = None
         self.input = None
         self.output = None
-        self.fitness = None
+        self._fitness = None
         self.history = None
+
+    @property
+    def fitness(self):
+        if self._fitness is None:
+            return None
+        else:
+            ascending = [is_objective_ascending(objective)
+                         for objective in self._objectives]
+            return self._fitness\
+                .sort_values(self._fitnesscols, ascending=ascending)
 
     def _set(self, df):
         self._inputcols = df.columns
         self.main = df
         self.input = self._get_input()
+        self._index = self.input.index
 
     def _get_input(self):
         return create_id(self.main, self._pop.genes)
 
     def _create_output(self, output_df):
+        self._inputcols = output_df.columns
         self.output = pd.concat((self.input, output_df), axis=1)
 
-    def _create_fitness(self, fitness_df):
-        self.fitness = self.input.merge(fitness_df).set_index(self.input.index)
+    def _create_fitness(self, fitness_df, objectives):
+        fitness_cols = list(fitness_df.columns)
+        self._set_fitness_objectives(fitness_cols, objectives)
+        self._fitness = pd.concat((self.output, fitness_df), axis=1)
 
-    def _increment_fitness(self, incr_df):
-        self.fitness = self.fitness.merge(incr_df).set_index(self.input.index)
+    def _set_fitness_objectives(self, cols, objectives):
+        self._fitnesscols = cols
+        self._objectives = objectives
 
-    def absorb(self, other):
+    def _absorb(self, other):
+        self._inputcols = other._inputcols
+        self._outputcols = other._outputcols
+        self._objectives = other._objectives
+        self._fitnesscols = other._fitnesscols
+        self._index = other._index
         self.main = other.main
         self.input = other.input
         self.output = other.output
-        self.fitness = other.fitness
+        self._fitness = other._fitness
         self.history = other.history
 
 
@@ -207,7 +249,7 @@ def make_creature_from_df_row(row, genes):
     return Creature(genome)
 
 
-class Fitness:
+class FitnessBuilder:
     def __init__(self, population):
         self._pop = population
         self.multi_objective = MultiObjectiveFitness(population)
@@ -226,9 +268,8 @@ class Fitness:
                     - 'maximize' (or 'max')
         """
         pop = self._pop.copy()
-        ascending = check_objective(objective)
-        assign_criteria_inplace(pop, output)
-        sort_criteria_inplace(pop, 'criteria', ascending)
+        fitness_df = get_criteria_df(pop, output)
+        pop.add_fitness(fitness_df, [objective])
         return pop
 
 
@@ -254,14 +295,9 @@ class MultiObjectiveFitness:
                         - 'minimize' (or 'min')
                         - 'maximize' (or 'max')
         """
-        n_priorities = len(priorities)
-        objectives = check_objectives(objectives, n_priorities)
         pop = self._pop.copy()
-        for i, output in enumerate(priorities):
-            assign_criteria_inplace(pop, output, suffix=i)
-        criteria = [f'criteria{i}' for i in range(n_priorities)]
-        ascending = [check_objective(objective) for objective in objectives]
-        sort_criteria_inplace(pop, criteria, ascending)
+        fitness_df = build_criteria_df(pop, priorities, objectives)
+        pop.add_fitness(fitness_df, objectives)
         return pop
 
     def pareto(self, outputs, objectives):
@@ -281,19 +317,79 @@ class MultiObjectiveFitness:
                         - 'minimize' (or 'min')
                         - 'maximize' (or 'max')
         """
-        n_outputs = len(outputs)
-        objectives = check_objectives(objectives, n_outputs)
         pop = self._pop.copy()
-        for i, output in enumerate(outputs):
-            assign_criteria_inplace(pop, output, suffix=i)
-        assign_pareto_fronts_inplace(pop, objectives)
+        criteria_df = build_criteria_df(pop, outputs, objectives)
+        fronts = get_pareto_fronts(criteria_df, objectives)
+        crowd = get_pareto_crowds(criteria_df, fronts)
+        fitness_df = criteria_df.assign(front=fronts).assign(crowd=crowd)
         criteria = ['front', 'crowd']
-        ascending = check_objective(['min', 'max'])
-        sort_criteria_inplace(pop, criteria, ascending)
-        return pop
+        fitness_objectives = ['min', 'max']
+        pop.add_fitness(fitness_df, [])
+        pop.reset_fitness_objectives(criteria, fitness_objectives)
+        return ParetoPopulation(pop)
 
 
-def check_objectives(objectives, n):
+class ParetoPopulation(Population):
+    def __init__(self, pop):
+        super().__init__(pop.genome_blueprint)
+        self.datasets._absorb(pop.datasets)
+
+    def plot_fronts(self, x=None, y=None, hlfront=None, hlcolor='k',
+                    show_worst=False, colormap='rainbow', **kw):
+        """
+        Plot fronts in a 2D scatter plot the separates each front by color and
+        highlight one specific front (if desired).
+
+        Parameters
+        ----------
+        :x:             `str` for the X axis column (Default: None; if None is set,
+                        the first fitness column will be used).
+        :y:             `str` for the Y axis column (Default: None; if None is set,
+                        the second fitness column will be used).
+        :hlfront:       `int` or `list` for setting the highlighted front(s) (default:
+                        None; if None is set, no fronts will be highlighted)
+        :hlcolor:       `str` or `list` for setting the color of the highlighted front
+                        (default: 'k')
+        :show_worst:    `bool` set True to show the elements that didn't make the cut
+                        (default: False)
+        :colormap:      `str` for the desired colormap (default: 'rainbow')
+
+        Key-Word Arguments - Pandas DataFrame Scatter Plot K-W Arguments
+        """
+        df = self.datasets._fitness
+        if x is None:
+            x = self.datasets._fitnesscols[0]
+        if y is None:
+            y = self.datasets._fitnesscols[1]
+        if show_worst == False:
+            worst = df['front'].max()
+            f = df['front'] != worst
+            dfplot = df[f]
+        else:
+            dfplot = df
+        ax = dfplot.plot.scatter(x=x, y=y,
+                                 c='front',
+                                 colormap=colormap,
+                                 sharex=False,
+                                 **kw)
+        fronts = dfplot['front']
+        if hlfront is not None:
+            for front in list(hlfront):
+                ax = dfplot[fronts == front]\
+                    .plot\
+                    .scatter(x=x, y=y, ax=ax, color=hlcolor)
+        return ax
+
+
+def build_criteria_df(pop, criteria, objectives):
+    n_criteria = len(criteria)
+    objectives = assert_objective_list(objectives, n_criteria)
+    criteria_dfs = [get_criteria_df(pop, output, suffix=i)
+                    for i, output in enumerate(criteria)]
+    return pd.concat(criteria_dfs, axis=1)
+
+
+def assert_objective_list(objectives, n):
     if isinstance(objectives, str):
         objectives = [objectives] * n
     elif not isinstance(objectives, (list, tuple)):
@@ -301,7 +397,7 @@ def check_objectives(objectives, n):
     return objectives
 
 
-def check_objective(objective):
+def is_objective_ascending(objective):
     if objective.lower() in ['min', 'minimize']:
         ascending = True
     elif objective.lower() in ['max', 'maximize']:
@@ -311,22 +407,52 @@ def check_objective(objective):
     return ascending
 
 
-def assign_criteria_inplace(pop, output, suffix=''):
+def get_criteria_df(pop, output, suffix=''):
     criteria = pop.datasets.output[output]
-    kw = {f'criteria{suffix}': criteria}
-    fitness_df = pop.datasets.output.assign(**kw)
-    pop.add_fitness(fitness_df)
+    data = {f'criteria{suffix}': criteria}
+    return pd.DataFrame(data, index=pop.datasets._index)
 
 
-def assign_pareto_fronts_inplace(pop, objectives):
-    fitness_df = pop.datasets.fitness.copy()
-    index = fitness_df.index
-    size = len(fitness_df.input)
-    fronts = pd.Series(np.zeros(size), index=index, dtype=int)
-    dominants = pd.Series(np.zeros(size), index=index, dtype=object)
-    # (...)
+def get_pareto_fronts(df, objectives):
+    size = len(df)
+    find_dominators = find_dominators_deco(df, objectives)
+    dominators = df.apply(find_dominators, axis=1)
+    fronts = pd.Series(np.zeros(size), index=df.index, dtype=int)
+    lenvals = dominators.map(len)
+    front = 0
+    while sum(fronts == 0) > size/2:
+        front += 1
+        f = lenvals == 0
+        fronts[f] = front
+        lenvals[f] = None
+        dominator_ids = f[f].index
+        get_n_dominators = n_dominators_deco(dominator_ids)
+        n_dominators = dominators.map(get_n_dominators)
+        lenvals[~f] -= n_dominators[~f]
+    fronts[fronts == 0] = front + 1
+    return fronts
 
 
-def sort_criteria_inplace(pop, criteria, ascending):
-    pop.datasets.fitness\
-        .sort_values(criteria, ascending=ascending, inplace=True)
+def get_pareto_crowds(df, fronts):
+    return fronts / 4
+
+
+# decorators
+
+def find_dominators_deco(df, objectives):
+    def mapper(x):
+        f = np.ones(len(df), dtype=bool)
+        for col, objective in zip(df.columns, objectives):
+            if objective == 'min':
+                check = df[col] < x[col]
+            elif objective == 'max':
+                check = df[col] > x[col]
+            f = f & check
+        return df.index[f]
+    return mapper
+
+
+def n_dominators_deco(ids):
+    def mapper(x):
+        return len(np.intersect1d(ids, x))
+    return mapper

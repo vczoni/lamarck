@@ -414,29 +414,24 @@ def get_pareto_fronts(df, objectives):
 
 def get_pareto_crowds(df, fronts):
     frontvals = sorted(fronts.unique())
-    distance_df = make_distance_df(df)
-    crowd = pd.Series(index=df.index, dtype=float)
+    crowds = pd.Series(np.zeros(len(df)), index=df.index)
     for front in frontvals:
         f = fronts == front
-        front_df = distance_df[f]
-        s = front_df.apply(p2, axis=1).apply(sum, axis=1).apply(sq2)
-        crowd[f] = s
-    return crowd
+        crowds[f] = get_crowd(df[f])
+    return crowds
 
 
-def make_distance_df(df):
-    df = df.copy()
-    for col in df.columns:
-        s = df[col]
-        dist = dist_deco(s)
-        df[col] = s.apply(dist)
-    return df
-
-
-def p2(x): return x**2
-
-
-def sq2(x): return x**(1/2)
+def get_crowd(df):
+    s = pd.Series(np.zeros(len(df)), index=df.index)
+    for _, cs in df.iteritems():
+        infval = pd.Series([np.inf])
+        si = pd\
+            .concat([-infval, cs, infval])\
+            .sort_values()
+        sfvals = si[2:].values - si[:-2].values
+        sf = pd.Series(sfvals, index=si.index[1:-1])
+        s += sf
+    return s
 
 
 # decorators
@@ -457,10 +452,4 @@ def find_dominators_deco(df, objectives):
 def n_dominators_deco(ids):
     def mapper(x):
         return len(np.intersect1d(ids, x))
-    return mapper
-
-
-def dist_deco(s):
-    def mapper(x):
-        return (s - x).sort_values()[1:5].mean()
     return mapper

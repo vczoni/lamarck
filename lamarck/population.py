@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from copy import deepcopy
 from lamarck import Creature
+from lamarck.plotter import PopulationPlotter, PopulationPlotterPareto
 
 
 def return_new_pop_deco(df_gen_method):
@@ -53,8 +54,10 @@ class Population:
         self.datasets = PopulationDatasets(self)
         self.generation = 0
         self.genes = list(genome_blueprint)
+        # instances
         self.get_creature = CreatureGetter(self)
         self.apply_fitness = FitnessBuilder(self)
+        self._set_plotter(PopulationPlotter)
 
     def __getitem__(self, key):
         return self.get_creature.from_index(key)
@@ -74,6 +77,9 @@ class Population:
         return pd\
             .concat((self.datasets.main, other.datasets.main))\
             .reset_index(drop=True)
+
+    def _set_plotter(self, plotter_class):
+        self.plot = plotter_class(self)
 
     @return_new_pop_deco
     def drop_duplicates(self):
@@ -268,7 +274,8 @@ class FitnessBuilder:
                     - 'maximize' (or 'max')
         """
         pop = self._pop.copy()
-        fitness_df = get_criteria_df(pop, output)
+        objective = standardize_objective(objective)
+        fitness_df = get_single_criteria(pop, output)
         pop.add_fitness(fitness_df, [objective])
         return pop
 
@@ -296,6 +303,7 @@ class MultiObjectiveFitness:
                         - 'maximize' (or 'max')
         """
         pop = self._pop.copy()
+        objectives = standardize_objectives(objectives)
         fitness_df = build_criteria_df(pop, priorities, objectives)
         pop.add_fitness(fitness_df, objectives)
         return pop
@@ -318,7 +326,9 @@ class MultiObjectiveFitness:
                         - 'maximize' (or 'max')
         """
         pop = self._pop.copy()
+        objectives = standardize_objectives(objectives)
         criteria_df = build_criteria_df(pop, outputs, objectives)
+        criteria_df = normalize(criteria_df)
         fronts = get_pareto_fronts(criteria_df, objectives)
         crowd = get_pareto_crowds(criteria_df, fronts)
         fitness_df = criteria_df.assign(front=fronts).assign(crowd=crowd)
@@ -326,65 +336,14 @@ class MultiObjectiveFitness:
         fitness_objectives = ['min', 'max']
         pop.add_fitness(fitness_df, [])
         pop.reset_fitness_objectives(criteria, fitness_objectives)
-        return ParetoPopulation(pop)
-
-
-class ParetoPopulation(Population):
-    def __init__(self, pop):
-        super().__init__(pop.genome_blueprint)
-        self.datasets._absorb(pop.datasets)
-
-    def plot_fronts(self, x=None, y=None, hlfront=None, hlcolor='k',
-                    show_worst=False, colormap='rainbow', **kw):
-        """
-        Plot fronts in a 2D scatter plot the separates each front by color and
-        highlight one specific front (if desired).
-
-        Parameters
-        ----------
-        :x:             `str` for the X axis column (Default: None; if None is set,
-                        the first fitness column will be used).
-        :y:             `str` for the Y axis column (Default: None; if None is set,
-                        the second fitness column will be used).
-        :hlfront:       `int` or `list` for setting the highlighted front(s) (default:
-                        None; if None is set, no fronts will be highlighted)
-        :hlcolor:       `str` or `list` for setting the color of the highlighted front
-                        (default: 'k')
-        :show_worst:    `bool` set True to show the elements that didn't make the cut
-                        (default: False)
-        :colormap:      `str` for the desired colormap (default: 'rainbow')
-
-        Key-Word Arguments - Pandas DataFrame Scatter Plot K-W Arguments
-        """
-        df = self.datasets._fitness
-        if x is None:
-            x = self.datasets._fitnesscols[0]
-        if y is None:
-            y = self.datasets._fitnesscols[1]
-        if show_worst == False:
-            worst = df['front'].max()
-            f = df['front'] != worst
-            dfplot = df[f]
-        else:
-            dfplot = df
-        ax = dfplot.plot.scatter(x=x, y=y,
-                                 c='front',
-                                 colormap=colormap,
-                                 sharex=False,
-                                 **kw)
-        fronts = dfplot['front']
-        if hlfront is not None:
-            for front in list(hlfront):
-                ax = dfplot[fronts == front]\
-                    .plot\
-                    .scatter(x=x, y=y, ax=ax, color=hlcolor)
-        return ax
+        pop._set_plotter(PopulationPlotterPareto)
+        return pop
 
 
 def build_criteria_df(pop, criteria, objectives):
     n_criteria = len(criteria)
     objectives = assert_objective_list(objectives, n_criteria)
-    criteria_dfs = [get_criteria_df(pop, output, suffix=i)
+    criteria_dfs = [get_single_criteria(pop, output, suffix=i)
                     for i, output in enumerate(criteria)]
     return pd.concat(criteria_dfs, axis=1)
 
@@ -397,6 +356,26 @@ def assert_objective_list(objectives, n):
     return objectives
 
 
+def standardize_objectives(objectives):
+    if isinstance(objectives, str):
+        return standardize_objective(objectives)
+    else:
+        return [standardize_objective(objective) for objective in objectives]
+
+
+def standardize_objective(objective):
+    if objective.lower() in ['min', 'minimize']:
+        return 'min'
+    elif objective.lower() in ['max', 'maximize']:
+        return 'max'
+    else:
+        raise Exception(":objective: must be either 'min' or 'max'.")
+
+
+def normalize(df):
+    return (df - df.mean()) / df.std()
+
+
 def is_objective_ascending(objective):
     if objective.lower() in ['min', 'minimize']:
         ascending = True
@@ -407,7 +386,7 @@ def is_objective_ascending(objective):
     return ascending
 
 
-def get_criteria_df(pop, output, suffix=''):
+def get_single_criteria(pop, output, suffix=''):
     criteria = pop.datasets.output[output]
     data = {f'criteria{suffix}': criteria}
     return pd.DataFrame(data, index=pop.datasets._index)
@@ -434,7 +413,30 @@ def get_pareto_fronts(df, objectives):
 
 
 def get_pareto_crowds(df, fronts):
-    return fronts / 4
+    frontvals = sorted(fronts.unique())
+    distance_df = make_distance_df(df)
+    crowd = pd.Series(index=df.index, dtype=float)
+    for front in frontvals:
+        f = fronts == front
+        front_df = distance_df[f]
+        s = front_df.apply(p2, axis=1).apply(sum, axis=1).apply(sq2)
+        crowd[f] = s
+    return crowd
+
+
+def make_distance_df(df):
+    df = df.copy()
+    for col in df.columns:
+        s = df[col]
+        dist = dist_deco(s)
+        df[col] = s.apply(dist)
+    return df
+
+
+def p2(x): return x**2
+
+
+def sq2(x): return x**(1/2)
 
 
 # decorators
@@ -455,4 +457,10 @@ def find_dominators_deco(df, objectives):
 def n_dominators_deco(ids):
     def mapper(x):
         return len(np.intersect1d(ids, x))
+    return mapper
+
+
+def dist_deco(s):
+    def mapper(x):
+        return (s - x).sort_values()[1:5].mean()
     return mapper

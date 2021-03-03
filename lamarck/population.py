@@ -2,17 +2,8 @@ import numpy as np
 import pandas as pd
 from copy import deepcopy
 from lamarck import Creature
-from lamarck.plotter import PopulationPlotter, PopulationPlotterPareto
-
-
-def return_new_pop_deco(df_gen_method):
-    def wrapper(obj, *a, **kw):
-        genome_blueprint = deepcopy(obj.genome_blueprint)
-        df = df_gen_method(obj, *a, **kw)
-        new_pop = Population(genome_blueprint)
-        new_pop.populate.from_gene_dataframe(df)
-        return new_pop
-    return wrapper
+from lamarck.fitness import FitnessBuilder
+from lamarck.plotter import PopulationPlotter
 
 
 class Population:
@@ -54,6 +45,7 @@ class Population:
         self.datasets = PopulationDatasets(self)
         self.generation = 0
         self.genes = list(genome_blueprint)
+        self.normal_population_level = 0
         # instances
         self.get_creature = CreatureGetter(self)
         self.apply_fitness = FitnessBuilder(self)
@@ -63,7 +55,7 @@ class Population:
         return self.get_creature.from_index(key)
 
     def __len__(self):
-        return len(self.datasets.main)
+        return len(self.datasets.input)
 
     def __repr__(self):
         specs = [f"{x} ({d['type']})"
@@ -72,43 +64,64 @@ class Population:
         return f"""Population with {len(self)} Creatures with genes {genestr}.
         """
 
-    @return_new_pop_deco
     def __add__(self, other):
-        return pd\
-            .concat((self.datasets.main, other.datasets.main))\
+        genome_blueprint = deepcopy(self.genome_blueprint)
+        df = pd\
+            .concat((self.datasets.input, other.datasets.input))\
             .reset_index(drop=True)
+        new_pop = Population(genome_blueprint)
+        new_pop.populate.from_gene_dataframe(df)
+        return new_pop
 
     def _set_plotter(self, plotter_class):
         self.plot = plotter_class(self)
+        self._plotter_class = plotter_class
 
-    @return_new_pop_deco
     def drop_duplicates(self):
         """
         Returns a Population based on this one, without duplicates.
         """
-        return self.datasets.main.drop_duplicates().reset_index(drop=True)
+        self.datasets._drop_duplicates()
 
     def copy(self):
-        new_pop = Population(self.genome_blueprint)
+        genome_blueprint = deepcopy(self.genome_blueprint)
+        new_pop = Population(genome_blueprint)
         new_pop.datasets._absorb(self.datasets)
+        new_pop.define()
+        new_pop._set_plotter(self._plotter_class)
         return new_pop
 
-    def add_outputs(self, output_df):
+    def define(self):
+        """
+        Define that this Population's size is the "normal" state.
+        """
+        self.normal_population_level = len(self)
+
+    def set_output(self, output_df):
         """
         Parameters
         ----------
         :output_df:     `DataFrame`
         """
-        self.datasets._create_output(output_df)
+        self.datasets._set_output(output_df)
 
-    def add_fitness(self, fitness_df, objectives):
+    def include_output(self, output_df):
+        """
+        Parameters
+        ----------
+        :output_df:     `DataFrame`
+        """
+        self.datasets._include_output(output_df)
+
+    def add_fitness(self, fitness_df, objectives, fitness_cols=None):
         """
         Parameters
         ----------
         :fitness_df:    `DataFrame`
         :objectives:    `list`
+        :fitness_cols:  `list` (Default: None)
         """
-        self.datasets._create_fitness(fitness_df, objectives)
+        self.datasets._set_fitness(fitness_df, objectives, fitness_cols)
 
     def reset_fitness_objectives(self, fitness_cols, objectives):
         """
@@ -118,6 +131,19 @@ class Population:
         :objectives:    `list`
         """
         self.datasets._set_fitness_objectives(fitness_cols, objectives)
+
+    def select(self, p=0.5):
+        """
+        """
+        pop = self.copy()
+        pop.datasets._select(p)
+        pop.set_generation(self.generation + 1)
+        return pop
+
+    def set_generation(self, generation):
+        """
+        """
+        self.generation = generation
 
 
 class Populator:
@@ -160,78 +186,112 @@ class Populator:
         >>> pop.populate.from_gene_dataframe(df)
         """
         self._pop.datasets._set(dataframe.copy())
+        self._pop.define()
 
 
 class PopulationDatasets:
     def __init__(self, population):
         self._pop = population
         self._inputcols = None
-        self._outputcols = None
-        self._objectives = None
         self._fitnesscols = None
-        self._index = None
-        self.main = None
+        self._objectives = None
         self.input = None
         self.output = None
-        self._fitness = None
+        self.fitness = None
         self.history = None
 
     @property
-    def fitness(self):
-        if self._fitness is None:
-            return None
-        else:
-            ascending = [is_objective_ascending(objective)
-                         for objective in self._objectives]
-            return self._fitness\
-                .sort_values(self._fitnesscols, ascending=ascending)
+    def index(self):
+        return self.input.index
+
+    @property
+    def _outputcols(self):
+        return [c for c in self.output if c not in self.input]
 
     def _set(self, df):
-        self._inputcols = df.columns
-        self.main = df
-        self.input = self._get_input()
-        self._index = self.input.index
+        self._inputcols = self._pop.genes
+        self.input = create_id(df[self._inputcols])
 
-    def _get_input(self):
-        return create_id(self.main, self._pop.genes)
+    def _drop_duplicates(self):
+        self.input = self.input.drop_duplicates()
+        self.assert_index_to_dataframes()
 
-    def _create_output(self, output_df):
-        self._inputcols = output_df.columns
-        self.output = pd.concat((self.input, output_df), axis=1)
+    def assert_index_to_dataframes(self):
+        if self.output is not None:
+            self.output = self.output.loc[self.index]
+        if self.fitness is not None:
+            self.fitness = self.fitness.loc[self.index]
+            self._sort_fitness()
 
-    def _create_fitness(self, fitness_df, objectives):
-        fitness_cols = list(fitness_df.columns)
+    def _set_output(self, output_df):
+        final_output_df = pd.concat((self.input, output_df), axis=1)
+        self.output = final_output_df
+
+    def _include_output(self, output_df):
+        output_df = pd.concat((self.input, output_df), axis=1)
+        if self.output is None:
+            self._set_output(output_df)
+        else:
+            self.output = pd.concat((self.output, output_df), axis=1)
+
+    def _set_fitness(self, fitness_df, objectives, fitness_cols=None):
+        if fitness_cols is None:
+            fitness_cols = list(fitness_df.columns)
         self._set_fitness_objectives(fitness_cols, objectives)
-        self._fitness = pd.concat((self.output, fitness_df), axis=1)
+        self.fitness = pd.concat((self.output, fitness_df), axis=1)
+        self._sort_fitness()
+
+    def _sort_fitness(self):
+        ascending = [is_objective_ascending(objective)
+                     for objective in self._objectives]
+        self.fitness.sort_values(self._fitnesscols,
+                                 ascending=ascending,
+                                 inplace=True)
 
     def _set_fitness_objectives(self, cols, objectives):
         self._fitnesscols = cols
         self._objectives = objectives
 
+    def _add_to_history(self, fitness_df):
+        fitness_df_gen = fitness_df.assign(generation=self._pop.generation)
+        if self.history is None:
+            self.history = fitness_df_gen
+        else:
+            self.history = pd.concat((self.history, fitness_df_gen))
+
     def _absorb(self, other):
         self._inputcols = other._inputcols
-        self._outputcols = other._outputcols
-        self._objectives = other._objectives
         self._fitnesscols = other._fitnesscols
-        self._index = other._index
-        self.main = other.main
+        self._objectives = other._objectives
         self.input = other.input
         self.output = other.output
-        self._fitness = other._fitness
+        self.fitness = other.fitness
         self.history = other.history
 
+    def _select(self, p):
+        if self.fitness is None:
+            raise Exception(
+                "Population wasn't tested yet (Fitness Dataset does't exist)."
+            )
+        else:
+            self._add_to_history(self.fitness)
+            n_fittest = int(len(self.fitness) * p)
+            index = self.fitness[0:n_fittest].index
+            self.input = self.input.loc[index]
+            self.output = self.output.loc[index]
+            self.fitness = self.fitness.loc[index]
 
-def create_id(df, columns):
+
+def create_id(df):
     df = df.copy()
-    colgen = column_aggregator(df, columns)
+    colgen = column_aggregator(df)
     cols = tuple(colgen)
-    def hashfun(x): return hash(x)
-    idcol = pd.Series(tuple(zip(*cols))).apply(hashfun)
+    idcol = pd.Series(tuple(zip(*cols))).apply(hash)
     return df.assign(id=idcol).set_index('id')
 
 
-def column_aggregator(df, columns):
-    for col in columns:
+def column_aggregator(df):
+    for col in df.columns:
         yield df[col]
 
 
@@ -255,127 +315,6 @@ def make_creature_from_df_row(row, genes):
     return Creature(genome)
 
 
-class FitnessBuilder:
-    def __init__(self, population):
-        self._pop = population
-        self.multi_objective = MultiObjectiveFitness(population)
-
-    def single_objective(self, output, objective):
-        """
-        Define an Output Variable as the objective and an Objective ('maximize'
-        or 'minimize'.)
-
-        Parameters
-        ----------
-        :output:    Variable name (`str`)
-        :objective: Objective (`str`).
-                    Objective options:
-                    - 'minimize' (or 'min')
-                    - 'maximize' (or 'max')
-        """
-        pop = self._pop.copy()
-        objective = standardize_objective(objective)
-        fitness_df = get_single_criteria(pop, output)
-        pop.add_fitness(fitness_df, [objective])
-        return pop
-
-
-class MultiObjectiveFitness:
-    def __init__(self, population):
-        self._pop = population
-
-    def ranked(self, priorities, objectives):
-        """
-        Define a list of Output Variables as the objective and a list of
-        Objectives in the respective order.
-
-        Parameters
-        ----------
-        :priorities:    `list` of Output Variables. The order of the output implies
-                        the order of priority, meaning that the first output is the
-                        one that is targeted to determine the Creature's Fitness,
-                        but in case of a Draw, the next one is considered, and so on.
-        :objectives:    `list` of Objectives. A `str` of one objective is allowed,
-                        meaning all objectives are the same as the one that was
-                        passed.
-                        Objective options:
-                        - 'minimize' (or 'min')
-                        - 'maximize' (or 'max')
-        """
-        pop = self._pop.copy()
-        objectives = standardize_objectives(objectives)
-        fitness_df = build_criteria_df(pop, priorities, objectives)
-        pop.add_fitness(fitness_df, objectives)
-        return pop
-
-    def pareto(self, outputs, objectives):
-        """
-        Define a list of Output Variables as the objective and a list of
-        Objectives in the respective order. All Output Variables are treated
-        equally, and there are no "Best" Creatures here, but fronts of
-        creatures that offer different types of unique trade-offs.
-
-        Parameters
-        ----------
-        :outputs:       `list` of Output Variables.
-        :objectives:    `list` of Objectives. A `str` of one objective is allowed,
-                        meaning all objectives are the same as the one that was
-                        passed.
-                        Objective options:
-                        - 'minimize' (or 'min')
-                        - 'maximize' (or 'max')
-        """
-        pop = self._pop.copy()
-        objectives = standardize_objectives(objectives)
-        criteria_df = build_criteria_df(pop, outputs, objectives)
-        criteria_df = normalize(criteria_df)
-        fronts = get_pareto_fronts(criteria_df, objectives)
-        crowd = get_pareto_crowds(criteria_df, fronts)
-        fitness_df = criteria_df.assign(front=fronts).assign(crowd=crowd)
-        criteria = ['front', 'crowd']
-        fitness_objectives = ['min', 'max']
-        pop.add_fitness(fitness_df, [])
-        pop.reset_fitness_objectives(criteria, fitness_objectives)
-        pop._set_plotter(PopulationPlotterPareto)
-        return pop
-
-
-def build_criteria_df(pop, criteria, objectives):
-    n_criteria = len(criteria)
-    objectives = assert_objective_list(objectives, n_criteria)
-    criteria_dfs = [get_single_criteria(pop, output, suffix=i)
-                    for i, output in enumerate(criteria)]
-    return pd.concat(criteria_dfs, axis=1)
-
-
-def assert_objective_list(objectives, n):
-    if isinstance(objectives, str):
-        objectives = [objectives] * n
-    elif not isinstance(objectives, (list, tuple)):
-        raise TypeError(":objectives: must be `list`, `tuple` or `str`")
-    return objectives
-
-
-def standardize_objectives(objectives):
-    if isinstance(objectives, str):
-        return standardize_objective(objectives)
-    else:
-        return [standardize_objective(objective) for objective in objectives]
-
-
-def standardize_objective(objective):
-    if objective.lower() in ['min', 'minimize']:
-        return 'min'
-    elif objective.lower() in ['max', 'maximize']:
-        return 'max'
-    else:
-        raise Exception(":objective: must be either 'min' or 'max'.")
-
-
-def normalize(df):
-    return (df - df.mean()) / df.std()
-
-
 def is_objective_ascending(objective):
     if objective.lower() in ['min', 'minimize']:
         ascending = True
@@ -384,72 +323,3 @@ def is_objective_ascending(objective):
     else:
         raise Exception(":objective: must be either 'min' or 'max'.")
     return ascending
-
-
-def get_single_criteria(pop, output, suffix=''):
-    criteria = pop.datasets.output[output]
-    data = {f'criteria{suffix}': criteria}
-    return pd.DataFrame(data, index=pop.datasets._index)
-
-
-def get_pareto_fronts(df, objectives):
-    size = len(df)
-    find_dominators = find_dominators_deco(df, objectives)
-    dominators = df.apply(find_dominators, axis=1)
-    fronts = pd.Series(np.zeros(size), index=df.index, dtype=int)
-    lenvals = dominators.map(len)
-    front = 0
-    while sum(fronts == 0) > size/2:
-        front += 1
-        f = lenvals == 0
-        fronts[f] = front
-        lenvals[f] = None
-        dominator_ids = f[f].index
-        get_n_dominators = n_dominators_deco(dominator_ids)
-        n_dominators = dominators.map(get_n_dominators)
-        lenvals[~f] -= n_dominators[~f]
-    fronts[fronts == 0] = front + 1
-    return fronts
-
-
-def get_pareto_crowds(df, fronts):
-    frontvals = sorted(fronts.unique())
-    crowds = pd.Series(np.zeros(len(df)), index=df.index)
-    for front in frontvals:
-        f = fronts == front
-        crowds[f] = get_crowd(df[f])
-    return crowds
-
-
-def get_crowd(df):
-    s = pd.Series(np.zeros(len(df)), index=df.index)
-    for _, cs in df.iteritems():
-        infval = pd.Series([np.inf])
-        si = pd\
-            .concat([-infval, cs, infval])\
-            .sort_values()
-        sfvals = si[2:].values - si[:-2].values
-        sf = pd.Series(sfvals, index=si.index[1:-1])
-        s += sf
-    return s
-
-
-# decorators
-
-def find_dominators_deco(df, objectives):
-    def mapper(x):
-        f = np.ones(len(df), dtype=bool)
-        for col, objective in zip(df.columns, objectives):
-            if objective == 'min':
-                check = df[col] < x[col]
-            elif objective == 'max':
-                check = df[col] > x[col]
-            f = f & check
-        return df.index[f]
-    return mapper
-
-
-def n_dominators_deco(ids):
-    def mapper(x):
-        return len(np.intersect1d(ids, x))
-    return mapper

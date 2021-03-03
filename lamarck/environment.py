@@ -28,7 +28,7 @@ class Environment:
         if isinstance(obj, Creature):
             return self._simulate_creature(obj)
         elif isinstance(obj, Population):
-            return self._simulate_population(obj)
+            self._simulate_population(obj)
         else:
             raise Exception(":obj: must be a Creature or a Population.")
 
@@ -37,42 +37,55 @@ class Environment:
 
     def _simulate_population(self, pop):
         if self.config.multi:
-            return self._simulate_multithread(pop)
+            self._simulate_multithread(pop)
         else:
-            return self._simulate_serial(pop)
+            self._simulate_serial(pop)
 
     def _simulate_serial(self, pop):
-        fitness_dict = {creature.id: self._simulate_creature(creature)
-                        for creature in pop}
-        return build_output(fitness_dict, pop)
+        simpop = get_simpop(pop)
+        output_dict = {creature.id: self._simulate_creature(creature)
+                       for creature in simpop}
+        build_output(output_dict, pop)
 
     def _simulate_multithread(self, pop):
-        fitness_dict = {}
+        simpop = get_simpop(pop)
+        output_dict = {}
 
         def func(creature):
-            fitness = self._simulate_creature(creature)
-            fitness_dict.update({creature.id: fitness})
+            output = self._simulate_creature(creature)
+            output_dict.update({creature.id: output})
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.map(func, pop)
-        return build_output(fitness_dict, pop)
+            executor.map(func, simpop)
+        build_output(output_dict, pop)
 
 
-def build_output(fitness_dict, pop):
-    pop = pop.copy()
-    df = build_output_df_from_fitness_dict(fitness_dict)
-    pop.add_outputs(df)
-    return pop
+def build_output(output_dict, pop):
+    if any(output_dict):
+        df_out = build_output_df_from_output_dict(output_dict)
+        df = pd.concat((pop.datasets.output, df_out))
+        pop.set_output(df)
 
 
-def build_output_df_from_fitness_dict(fitness_dict):
-    index = list(fitness_dict.keys())
-    fitness_sample = fitness_dict[next(iter(fitness_dict))]
-    outputs = {key: [] for key in fitness_sample}
-    for data in fitness_dict.values():
+def build_output_df_from_output_dict(output_dict):
+    index = list(output_dict.keys())
+    output_sample = output_dict[next(iter(output_dict))]
+    outputs = {key: [] for key in output_sample}
+    for data in output_dict.values():
         for output in outputs.keys():
             outputs[output].append(data[output])
     return pd.DataFrame(outputs, index=index)
+
+
+def get_simpop(pop):
+    simpop = pop.copy()
+    if simpop.datasets.output is not None:
+        input_df = simpop.datasets.input
+        output_df = simpop.datasets.output
+        index = input_df.index.difference(output_df.index)
+        gene_df = simpop.datasets.input.loc[index]
+        simpop.populate.from_gene_dataframe(gene_df)
+    return simpop
 
 
 class EnvironmentConfig:

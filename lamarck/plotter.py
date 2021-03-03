@@ -31,7 +31,7 @@ class PopulationPlotterPareto:
 
         Key-Word Arguments - Pandas DataFrame Scatter Plot K-W Arguments
         """
-        df = self._pop.datasets._fitness
+        df = self._pop.datasets.fitness
         x, y = set_xy(x, y, self._pop.datasets._fitnesscols)
         dfplot = make_dfplot(df, show_worst)
         ax = dfplot.plot.scatter(x=x, y=y,

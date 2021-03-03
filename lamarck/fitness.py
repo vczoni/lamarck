@@ -22,11 +22,9 @@ class FitnessBuilder:
                     - 'minimize' (or 'min')
                     - 'maximize' (or 'max')
         """
-        pop = self._pop.copy()
         objective = standardize_objective(objective)
-        fitness_df = get_single_criteria(pop, output)
-        pop.add_fitness(fitness_df, [objective])
-        return pop
+        fitness_df = get_single_criteria(self._pop, output)
+        self._pop.add_fitness(fitness_df, [objective])
 
 
 class MultiObjectiveFitness:
@@ -51,11 +49,9 @@ class MultiObjectiveFitness:
                         - 'minimize' (or 'min')
                         - 'maximize' (or 'max')
         """
-        pop = self._pop.copy()
         objectives = standardize_objectives(objectives)
-        fitness_df = build_criteria_df(pop, priorities, objectives)
-        pop.add_fitness(fitness_df, objectives)
-        return pop
+        fitness_df = build_criteria_df(self._pop, priorities, objectives)
+        self._pop.add_fitness(fitness_df, objectives)
 
     def pareto(self, outputs, objectives):
         """
@@ -74,18 +70,16 @@ class MultiObjectiveFitness:
                         - 'minimize' (or 'min')
                         - 'maximize' (or 'max')
         """
-        pop = self._pop.copy()
         objectives = standardize_objectives(objectives)
-        criteria_df = build_criteria_df(pop, outputs, objectives)
+        criteria_df = build_criteria_df(self._pop, outputs, objectives)
         criteria_df = normalize(criteria_df)
         fronts = get_pareto_fronts(criteria_df, objectives)
         crowd = get_pareto_crowds(criteria_df, fronts)
         fitness_df = criteria_df.assign(front=fronts).assign(crowd=crowd)
-        pop.add_fitness(fitness_df,
-                        objectives=['min', 'max'],
-                        fitness_cols=['front', 'crowd'])
-        pop._set_plotter(PopulationPlotterPareto)
-        return pop
+        self._pop.add_fitness(fitness_df,
+                              objectives=['min', 'max'],
+                              fitness_cols=['front', 'crowd'])
+        self._pop._set_plotter(PopulationPlotterPareto)
 
 
 def build_criteria_df(pop, criteria, objectives):

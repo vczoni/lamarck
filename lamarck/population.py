@@ -212,27 +212,9 @@ class PopulationDatasets:
         self._inputcols = self._pop.genes
         self.input = create_id(df[self._inputcols])
 
-    def _drop_duplicates(self):
-        self.input = self.input.drop_duplicates()
-        self.assert_index_to_dataframes()
-
-    def assert_index_to_dataframes(self):
-        if self.output is not None:
-            self.output = self.output.loc[self.index]
-        if self.fitness is not None:
-            self.fitness = self.fitness.loc[self.index]
-            self._sort_fitness()
-
     def _set_output(self, output_df):
         final_output_df = pd.concat((self.input, output_df), axis=1)
         self.output = final_output_df
-
-    def _include_output(self, output_df):
-        output_df = pd.concat((self.input, output_df), axis=1)
-        if self.output is None:
-            self._set_output(output_df)
-        else:
-            self.output = pd.concat((self.output, output_df), axis=1)
 
     def _set_fitness(self, fitness_df, objectives, fitness_cols=None):
         if fitness_cols is None:
@@ -240,6 +222,24 @@ class PopulationDatasets:
         self._set_fitness_objectives(fitness_cols, objectives)
         self.fitness = pd.concat((self.output, fitness_df), axis=1)
         self._sort_fitness()
+
+    def _drop_duplicates(self):
+        self.input = self.input.drop_duplicates()
+        self._assert_index_to_dataframes()
+
+    def _assert_index_to_dataframes(self):
+        if self.output is not None:
+            self.output = self.output.loc[self.index]
+        if self.fitness is not None:
+            self.fitness = self.fitness.loc[self.index]
+            self._sort_fitness()
+
+    def _include_output(self, output_df):
+        output_df = pd.concat((self.input, output_df), axis=1)
+        if self.output is None:
+            self._set_output(output_df)
+        else:
+            self.output = pd.concat((self.output, output_df), axis=1)
 
     def _sort_fitness(self):
         ascending = [is_objective_ascending(objective)

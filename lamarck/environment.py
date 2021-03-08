@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import concurrent
 from lamarck import Creature, Population
+from lamarck.utils import get_id
 
 
 class Environment:
@@ -32,8 +33,11 @@ class Environment:
         else:
             raise Exception(":obj: must be a Creature or a Population.")
 
+    def _simulate(self, genome):
+        return self.config.process(**genome)
+
     def _simulate_creature(self, creature):
-        return self.config.process(**creature.genome)
+        return self._simulate(creature.genome)
 
     def _simulate_population(self, pop):
         if self.config.multi:
@@ -42,50 +46,56 @@ class Environment:
             self._simulate_serial(pop)
 
     def _simulate_serial(self, pop):
-        simpop = get_simpop(pop)
-        output_dict = {creature.id: self._simulate_creature(creature)
-                       for creature in simpop}
+        sim_genomes = get_sim_genomes(pop)
+        output_dict = {get_id(genome): self._simulate(genome)
+                       for genome in sim_genomes}
         build_output(output_dict, pop)
 
     def _simulate_multithread(self, pop):
-        simpop = get_simpop(pop)
+        sim_genomes = get_sim_genomes(pop)
         output_dict = {}
 
-        def func(creature):
-            output = self._simulate_creature(creature)
-            output_dict.update({creature.id: output})
+        def func(genome):
+            output = self._simulate(genome)
+            output_dict.update({get_id(genome): output})
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            executor.map(func, simpop)
+            executor.map(func, sim_genomes)
+
         build_output(output_dict, pop)
+
+
+def get_sim_genomes(pop):
+    out_cols = pop.datasets._outputcols
+    if out_cols is None:
+        df = pop.datasets.input
+    else:
+        f = pop.datasets.output[out_cols[0]].isna()
+        index = pop.datasets.index[f]
+        df = pop.datasets.input.loc[index]
+    return [x[1].to_dict() for x in df.iterrows()]
 
 
 def build_output(output_dict, pop):
     if any(output_dict):
         df_out = build_output_df_from_output_dict(output_dict)
-        df = pd.concat((pop.datasets.output, df_out))
-        pop.set_output(df)
+        outputs = list(df_out.columns)
+        pop.set_outputs(outputs)
+        pop.add_output(df_out)
 
 
 def build_output_df_from_output_dict(output_dict):
     index = list(output_dict.keys())
-    output_sample = output_dict[next(iter(output_dict))]
-    outputs = {key: [] for key in output_sample}
+    outputs = get_outputs(output_dict)
     for data in output_dict.values():
         for output in outputs.keys():
             outputs[output].append(data[output])
     return pd.DataFrame(outputs, index=index)
 
 
-def get_simpop(pop):
-    simpop = pop.copy()
-    if simpop.datasets.output is not None:
-        input_df = simpop.datasets.input
-        output_df = simpop.datasets.output
-        index = input_df.index.difference(output_df.index)
-        gene_df = simpop.datasets.input.loc[index]
-        simpop.populate.from_gene_dataframe(gene_df)
-    return simpop
+def get_outputs(output_dict):
+    output_sample = output_dict[next(iter(output_dict))]
+    return {key: [] for key in output_sample}
 
 
 class EnvironmentConfig:

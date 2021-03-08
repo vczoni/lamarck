@@ -1,3 +1,4 @@
+from lamarck.utils import get_id
 
 
 class Creature:
@@ -12,4 +13,4 @@ class Creature:
     def set_genome(self, genome):
         self.genome = genome
         self._genomevals = tuple(genome.values())
-        self.id = hash(self._genomevals)
+        self.id = get_id(self.genome)

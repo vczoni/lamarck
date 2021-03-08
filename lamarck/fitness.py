@@ -72,10 +72,10 @@ class MultiObjectiveFitness:
         """
         objectives = standardize_objectives(objectives)
         criteria_df = build_criteria_df(self._pop, outputs, objectives)
-        criteria_df = normalize(criteria_df)
-        fronts = get_pareto_fronts(criteria_df, objectives)
-        crowd = get_pareto_crowds(criteria_df, fronts)
-        fitness_df = criteria_df.assign(front=fronts).assign(crowd=crowd)
+        criteria_df_norm = normalize(criteria_df)
+        fronts = get_pareto_fronts(criteria_df_norm, objectives)
+        crowd = get_pareto_crowds(criteria_df_norm, fronts)
+        fitness_df = criteria_df_norm.assign(front=fronts, crowd=crowd)
         self._pop.add_fitness(fitness_df,
                               objectives=['min', 'max'],
                               fitness_cols=['front', 'crowd'])

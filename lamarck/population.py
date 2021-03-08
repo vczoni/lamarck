@@ -97,21 +97,21 @@ class Population:
         """
         self.normal_population_level = len(self)
 
-    def set_output(self, output_df):
+    def set_outputs(self, outputs):
         """
         Parameters
         ----------
-        :output_df:     `DataFrame`
+        :outputs:       `list`
         """
-        self.datasets._set_output(output_df)
+        self.datasets._set_outputs(outputs)
 
-    def include_output(self, output_df):
+    def add_output(self, output_df):
         """
         Parameters
         ----------
         :output_df:     `DataFrame`
         """
-        self.datasets._include_output(output_df)
+        self.datasets._add_output(output_df)
 
     def add_fitness(self, fitness_df, objectives, fitness_cols=None):
         """
@@ -150,13 +150,50 @@ class Populator:
     def __init__(self, population):
         self._pop = population
 
-    def add_creature(self, gene):
+    def creature(self, creature):
         """
+        Adds a Creature to the Population.
+
+        Parameters
+        ----------
+        :creature:  `Creature` that will be added to the Population.
         """
+        self.from_genome(creature.genome)
+
+    def from_genome(self, genome):
+        """
+        Adds a Creature to the Population, based on its Gene.
+
+        Parameters
+        ----------
+        :genome:  `dict` representing the `Creature`'s genome.
+        """
+        raw_genome_df = pd.DataFrame({k: [v] for k, v in genome.items()})
+        genome_df = create_id(raw_genome_df)
+        self._pop.datasets._add_creature(genome_df)
 
     def from_creature_list(self, creature_list):
         """
+        Adds all Creatures in a `list`.
+
+        Parameters
+        ----------
+        :creature_list: `list` of Creatures that will be added to the Population.
         """
+        for creature in creature_list:
+            self.creature(creature)
+
+    def from_gene_list(self, genome_list):
+        """
+        Adds all Creatures in a `list`.
+
+        Parameters
+        ----------
+        :gene_list: `list` of Genomes that will become the Creatures that will be added
+                    to the Population.
+        """
+        for genome in genome_list:
+            self.from_genome(genome)
 
     def from_gene_dataframe(self, dataframe):
         """
@@ -192,7 +229,7 @@ class Populator:
 class PopulationDatasets:
     def __init__(self, population):
         self._pop = population
-        self._inputcols = None
+        self._outputcols = None
         self._fitnesscols = None
         self._objectives = None
         self.input = None
@@ -201,20 +238,36 @@ class PopulationDatasets:
         self.history = None
 
     @property
-    def index(self):
-        return self.input.index
+    def index(self): return self.input.index
 
     @property
-    def _outputcols(self):
-        return [c for c in self.output if c not in self.input]
+    def _inputcols(self): return self._pop.genes
 
     def _set(self, df):
-        self._inputcols = self._pop.genes
         self.input = create_id(df[self._inputcols])
+        self.output = self.input.copy()
+        self.fitness = self.input.copy()
 
-    def _set_output(self, output_df):
-        final_output_df = pd.concat((self.input, output_df), axis=1)
-        self.output = final_output_df
+    def _set_outputs(self, outputs):
+        if self._outputcols != outputs:
+            outcols = {output: np.empty(len(self._pop)).fill(np.nan)
+                       for output in outputs}
+            self.output = self.output.assign(**outcols)
+
+    def _add_output(self, output_df):
+        self.output.update(output_df, overwrite=False)
+
+    def _add_creature(self, genome_df):
+        self.input = pd.concat((self.input, genome_df))
+        self._update_datasets()
+
+    def _update_datasets(self):
+        self.output = pd\
+            .merge(self.input, self.output, 'left')\
+            .set_index(self.index)
+        self.fitness = pd\
+            .merge(self.input, self.fitness, 'left')\
+            .set_index(self.index)
 
     def _set_fitness(self, fitness_df, objectives, fitness_cols=None):
         if fitness_cols is None:
@@ -225,28 +278,16 @@ class PopulationDatasets:
 
     def _drop_duplicates(self):
         self.input = self.input.drop_duplicates()
-        self._assert_index_to_dataframes()
-
-    def _assert_index_to_dataframes(self):
-        if self.output is not None:
-            self.output = self.output.loc[self.index]
-        if self.fitness is not None:
-            self.fitness = self.fitness.loc[self.index]
-            self._sort_fitness()
-
-    def _include_output(self, output_df):
-        output_df = pd.concat((self.input, output_df), axis=1)
-        if self.output is None:
-            self._set_output(output_df)
-        else:
-            self.output = pd.concat((self.output, output_df), axis=1)
+        self.output = self.output.drop_duplicates()
+        self.fitness = self.fitness.drop_duplicates()
 
     def _sort_fitness(self):
-        ascending = [is_objective_ascending(objective)
-                     for objective in self._objectives]
-        self.fitness.sort_values(self._fitnesscols,
-                                 ascending=ascending,
-                                 inplace=True)
+        if self._fitnesscols is not None:
+            ascending = [is_objective_ascending(objective)
+                         for objective in self._objectives]
+            self.fitness.sort_values(self._fitnesscols,
+                                     ascending=ascending,
+                                     inplace=True)
 
     def _set_fitness_objectives(self, cols, objectives):
         self._fitnesscols = cols
@@ -260,7 +301,7 @@ class PopulationDatasets:
             self.history = pd.concat((self.history, fitness_df_gen))
 
     def _absorb(self, other):
-        self._inputcols = other._inputcols
+        self._outputcols = other._outputcols
         self._fitnesscols = other._fitnesscols
         self._objectives = other._objectives
         self.input = other.input

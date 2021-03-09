@@ -170,7 +170,7 @@ def deterministically_make_population_from_dict(ndict, blueprint):
     genes = itertools.product(*gene_vals)
     gene_df = pd.DataFrame(genes, columns=gene_names)
     pop = Population(blueprint)
-    pop.populate.from_gene_dataframe(gene_df)
+    pop.populate.from_genome_dataframe(gene_df)
     return pop
 
 
@@ -261,7 +261,7 @@ def randomly_make_population(n, blueprint):
              for gene_name, specs in blueprint.items()}
     gene_df = pd.DataFrame(genes)
     pop = Population(blueprint)
-    pop.populate.from_gene_dataframe(gene_df)
+    pop.populate.from_genome_dataframe(gene_df)
     return pop
 
 

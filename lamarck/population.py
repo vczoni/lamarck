@@ -3,7 +3,9 @@ import pandas as pd
 from copy import deepcopy
 from lamarck import Creature
 from lamarck.fitness import FitnessBuilder
+from lamarck.repopulate import Repopulator
 from lamarck.plotter import PopulationPlotter
+from lamarck.utils import genome_already_exists
 
 
 class Population:
@@ -41,12 +43,13 @@ class Population:
 
     def __init__(self, genome_blueprint):
         self.genome_blueprint = genome_blueprint
-        self.populate = Populator(self)
-        self.datasets = PopulationDatasets(self)
         self.generation = 0
         self.genes = list(genome_blueprint)
-        self.normal_population_level = 0
+        self.natural_population_level = 0
         # instances
+        self.populate = Populator(self)
+        self.datasets = PopulationDatasets(self)
+        self.reproduce = Repopulator(self)
         self.get_creature = CreatureGetter(self)
         self.apply_fitness = FitnessBuilder(self)
         self._set_plotter(PopulationPlotter)
@@ -70,7 +73,7 @@ class Population:
             .concat((self.datasets.input, other.datasets.input))\
             .reset_index(drop=True)
         new_pop = Population(genome_blueprint)
-        new_pop.populate.from_gene_dataframe(df)
+        new_pop.populate.from_genome_dataframe(df)
         return new_pop
 
     def _set_plotter(self, plotter_class):
@@ -87,7 +90,8 @@ class Population:
         genome_blueprint = deepcopy(self.genome_blueprint)
         new_pop = Population(genome_blueprint)
         new_pop.datasets._absorb(self.datasets)
-        new_pop.define()
+        new_pop.natural_population_level = self.natural_population_level
+        new_pop.generation = self.generation
         new_pop._set_plotter(self._plotter_class)
         return new_pop
 
@@ -95,7 +99,27 @@ class Population:
         """
         Define that this Population's size is the "normal" state.
         """
-        self.normal_population_level = len(self)
+        self.natural_population_level = len(self)
+
+    def save_to_history(self):
+        """
+        Appends the fitness dataset to the history dataset.
+        """
+        if self.datasets.fitness is not None:
+            if self.generation not in self.datasets._generations:
+                self.datasets._add_to_history(self.datasets.fitness)
+            else:
+                raise Exception("This generation already exists in history.")
+        else:
+            raise Exception("Fitness dataset not present.")
+
+    def remove_from_history(self, generation):
+        """
+        Removes a generation from the history dataset.
+        """
+        f = self.datasets.history.generation != generation
+        new_history = self.datasets.history[f]
+        self.datasets._update_history(new_history)
 
     def set_outputs(self, outputs):
         """
@@ -183,19 +207,19 @@ class Populator:
         for creature in creature_list:
             self.creature(creature)
 
-    def from_gene_list(self, genome_list):
+    def from_genome_list(self, genome_list):
         """
-        Adds all Creatures in a `list`.
+        Adds all Creatures Genomes in a `list`.
 
         Parameters
         ----------
-        :gene_list: `list` of Genomes that will become the Creatures that will be added
-                    to the Population.
+        :genome_list:   `list` of Genomes that will become the Creatures that will
+                        be added to the Population.
         """
         for genome in genome_list:
             self.from_genome(genome)
 
-    def from_gene_dataframe(self, dataframe):
+    def from_genome_dataframe(self, dataframe):
         """
         Populates this Population object from a Pandas DataFrame with columns that
         coincide with the Genome Blueprint's Genes and Types.
@@ -220,10 +244,9 @@ class Populator:
         4  7  C  (j, i, k)
 
         >>> pop = Population(genome_blueprint)
-        >>> pop.populate.from_gene_dataframe(df)
+        >>> pop.populate.from_genome_dataframe(df)
         """
         self._pop.datasets._set(dataframe.copy())
-        self._pop.define()
 
 
 class PopulationDatasets:
@@ -231,7 +254,7 @@ class PopulationDatasets:
         self._pop = population
         self._outputcols = None
         self._fitnesscols = None
-        self._objectives = None
+        self._objectives = []
         self.input = None
         self.output = None
         self.fitness = None
@@ -243,23 +266,37 @@ class PopulationDatasets:
     @property
     def _inputcols(self): return self._pop.genes
 
+    @property
+    def _generations(self):
+        if self.history is None:
+            return []
+        else:
+            return self.history.generation.unique().tolist()
+
     def _set(self, df):
         self.input = create_id(df[self._inputcols])
         self.output = self.input.copy()
         self.fitness = self.input.copy()
 
     def _set_outputs(self, outputs):
-        if self._outputcols != outputs:
-            outcols = {output: np.empty(len(self._pop)).fill(np.nan)
-                       for output in outputs}
+        if self._outputcols is None:
+            self._outputcols = outputs
+            size = len(self._pop)
+            outcols = {}
+            for output in outputs:
+                col = np.empty(size, dtype=float)
+                col.fill(np.nan)
+                outcols.update({output: col})
             self.output = self.output.assign(**outcols)
 
     def _add_output(self, output_df):
         self.output.update(output_df, overwrite=False)
 
     def _add_creature(self, genome_df):
-        self.input = pd.concat((self.input, genome_df))
-        self._update_datasets()
+        genome = next(genome_df.iterrows())[1].to_dict()
+        if not genome_already_exists(genome, self._pop):
+            self.input = pd.concat((self.input, genome_df))
+            self._update_datasets()
 
     def _update_datasets(self):
         self.output = pd\
@@ -281,12 +318,15 @@ class PopulationDatasets:
         self.output = self.output.drop_duplicates()
         self.fitness = self.fitness.drop_duplicates()
 
+    @property
+    def _ascending(self):
+        return [is_objective_ascending(objective)
+                for objective in self._objectives]
+
     def _sort_fitness(self):
         if self._fitnesscols is not None:
-            ascending = [is_objective_ascending(objective)
-                         for objective in self._objectives]
             self.fitness.sort_values(self._fitnesscols,
-                                     ascending=ascending,
+                                     ascending=self._ascending,
                                      inplace=True)
 
     def _set_fitness_objectives(self, cols, objectives):
@@ -299,6 +339,14 @@ class PopulationDatasets:
             self.history = fitness_df_gen
         else:
             self.history = pd.concat((self.history, fitness_df_gen))
+
+    def _update_history(self, history_df):
+        self.history = history_df
+
+    def _sort_history(self):
+        sortcols = self._fitnesscols + ['generation']
+        ascending = self._ascending + [True]
+        self.history.sort_values(sortcols, ascending=ascending, inplace=True)
 
     def _absorb(self, other):
         self._outputcols = other._outputcols

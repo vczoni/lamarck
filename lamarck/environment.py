@@ -61,7 +61,6 @@ class Environment:
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             executor.map(func, sim_genomes)
-
         build_output(output_dict, pop)
 
 
@@ -70,7 +69,7 @@ def get_sim_genomes(pop):
     if out_cols is None:
         df = pop.datasets.input
     else:
-        f = pop.datasets.output[out_cols[0]].isna()
+        f = pop.datasets.output.isna().any(axis=1)
         index = pop.datasets.index[f]
         df = pop.datasets.input.loc[index]
     return [x[1].to_dict() for x in df.iterrows()]
@@ -90,7 +89,7 @@ def build_output_df_from_output_dict(output_dict):
     for data in output_dict.values():
         for output in outputs.keys():
             outputs[output].append(data[output])
-    return pd.DataFrame(outputs, index=index)
+    return pd.DataFrame(outputs, index=index, dtype=float)
 
 
 def get_outputs(output_dict):

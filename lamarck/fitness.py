@@ -53,7 +53,7 @@ class MultiObjectiveFitness:
         fitness_df = build_criteria_df(self._pop, priorities, objectives)
         self._pop.add_fitness(fitness_df, objectives)
 
-    def pareto(self, outputs, objectives):
+    def pareto(self, outputs, objectives, p=0.5):
         """
         Define a list of Output Variables as the objective and a list of
         Objectives in the respective order. All Output Variables are treated
@@ -69,11 +69,13 @@ class MultiObjectiveFitness:
                         Objective options:
                         - 'minimize' (or 'min')
                         - 'maximize' (or 'max')
+        :p:             `float` Proportion of the Population that will be classified.
+                        (default: 0.5)
         """
         objectives = standardize_objectives(objectives)
         criteria_df = build_criteria_df(self._pop, outputs, objectives)
         criteria_df_norm = normalize(criteria_df)
-        fronts = get_pareto_fronts(criteria_df_norm, objectives)
+        fronts = get_pareto_fronts(criteria_df_norm, objectives, p)
         crowd = get_pareto_crowds(criteria_df_norm, fronts)
         fitness_df = criteria_df_norm.assign(front=fronts, crowd=crowd)
         self._pop.add_fitness(fitness_df,
@@ -124,14 +126,15 @@ def normalize(df):
     return (df - df.mean()) / df.std()
 
 
-def get_pareto_fronts(df, objectives):
+def get_pareto_fronts(df, objectives, p):
     size = len(df)
     find_dominators = find_dominators_deco(df, objectives)
     dominators = df.apply(find_dominators, axis=1)
     fronts = pd.Series(np.zeros(size), index=df.index, dtype=int)
     lenvals = dominators.map(len)
     front = 0
-    while sum(fronts == 0) > size/2:
+    threshold = size * (1-p)
+    while sum(fronts == 0) >= threshold:
         front += 1
         f = lenvals == 0
         fronts[f] = front

@@ -1,14 +1,60 @@
+import numpy as np
 
 
 class PopulationPlotter:
     def __init__(self, pop):
         self._pop = pop
 
+    def variable_pair(self, x, y, **kw):
+        """
+        Scatter plot of two variables.
 
-class PopulationPlotterPareto:
-    def __init__(self, pop):
-        self._pop = pop
+        Parameters
+        ----------
+        :x:     `str` for the X axis column.
+        :y:     `str` for the Y axis column.
 
+        Key-Word Arguments - Pandas DataFrame Scatter Plot K-W Arguments
+        """
+        df = self._pop.datasets.output
+        return df.plot.scatter(x=x, y=y, **kw)
+
+    def history(self, column, metric=max, secondary_metric=None, **kw):
+        """
+        Scatter plot of the evolution of through multiple generations.
+
+        Parameters
+        ----------
+        :column:            `str` for the Y axis column.
+        :metric:            `str` or `function`
+        :secondary_metric:  `str` or `function`
+
+        Key-Word Arguments - Pandas DataFrame Scatter Plot K-W Arguments
+        """
+        metric = set_metric(metric)
+        gcol = 'generation'
+        df = self._pop.datasets.history.groupby(gcol).agg(metric).reset_index()
+        ax = df.plot.scatter(x=gcol, y=column, **kw)
+        if secondary_metric is not None:
+            secondary_metric = set_metric(secondary_metric)
+            df = self._pop.datasets.history.groupby(gcol).agg(secondary_metric)\
+                .reset_index()
+            ax = df.plot.scatter(x=gcol, y=column, ax=ax, color='r', **kw)
+        return ax
+
+
+def set_metric(metric):
+    if isinstance(metric, str):
+        if metric.lower() == 'min':
+            metric = min
+        elif metric.lower() == 'max':
+            metric = max
+        elif metric.lower() in ['mean', 'average', 'avg']:
+            metric = np.mean
+    return metric
+
+
+class PopulationPlotterPareto(PopulationPlotter):
     def fronts(self, x=None, y=None, hlfront=None, hlcolor='k',
                show_worst=False, colormap='rainbow', **kw):
         """
@@ -21,8 +67,8 @@ class PopulationPlotterPareto:
                         the first fitness column will be used).
         :y:             `str` for the Y axis column (Default: None; if None is set,
                         the second fitness column will be used).
-        :hlfront:       `int` or `list` for setting the highlighted front(s) (default:
-                        None; if None is set, no fronts will be highlighted)
+        :hlfront:       `int` or `list` for setting the highlighted front(s)
+                        (default: None; if None is set, no fronts will be highlighted)
         :hlcolor:       `str` or `list` for setting the color of the highlighted front
                         (default: 'k')
         :show_worst:    `bool` set True to show the elements that didn't make the cut

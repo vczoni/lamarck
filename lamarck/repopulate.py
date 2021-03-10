@@ -15,52 +15,55 @@ class Reproduce:
     def _genome_blueprint(self): return self._pop.genome_blueprint
 
     def _populate(self, parent1, parent2):
-        child_genomes = self._get_offspring(parent1, parent2)
+        child_genomes = self._cross_over(parent1.genome, parent2.genome)
         self._pop.populate.from_genome_list(list(child_genomes))
 
-    def _get_offspring(self, parent1, parent2):
-        sgenome1 = construct_straight_genome(parent1.genome)
-        sgenome2 = construct_straight_genome(parent2.genome)
-        gb = self._genome_blueprint
-        schild1, schild2 = self._cross_over(sgenome1, sgenome2)
-        child_genome1 = deconstruct_straight_genome(schild1, gb)
-        child_genome2 = deconstruct_straight_genome(schild2, gb)
-        return child_genome1, child_genome2
-
-    def _cross_over(self, sgenome1, sgenome2):
-        if all(sgenome1 == sgenome2):
-            raise Exception(f'Genomes must never match (genome: {sgenome1}).')
+    def _cross_over(self, pgenome1, pgenome2):
         flag = True
         while flag:
-            idx = self._random_index()
-            schild1 = sgenome1.copy()
-            schild2 = sgenome2.copy()
-            schild1[idx] = sgenome2[idx]
-            schild2[idx] = sgenome1[idx]
-            flag = all(schild1 == schild2) or all(idx) or not any(idx)
+            schild1 = {}
+            schild2 = {}
+            for gene, spec in self._genome_blueprint.items():
+                pg1 = pgenome1[gene]
+                pg2 = pgenome2[gene]
+                if spec['type'] == 'vectorial':
+                    if spec['ranges']['replace']:
+                        g1, g2 = cross_vectorial_genes(pg1, pg2)
+                    else:
+                        g1, g2 = cross_unique_vectorial_genes(pg1, pg2)
+                else:
+                    g1, g2 = cross_genes(pg1, pg2)
+                schild1.update({gene: g1})
+                schild2.update({gene: g2})
+            flag = schild1 == schild2
         return schild1, schild2
 
-    def _random_index(self):
-        idx = np.zeros(0, dtype=bool)
-        for spec in self._genome_blueprint.values():
-            if spec['type'] == 'vectorial':
-                n = spec['ranges']['length']
-                if spec['ranges']['replace']:
-                    idx_piece = np.random.choice(a=[True, False], size=n)
-                else:
-                    val = np.random.randint(0, 2, dtype=bool)
-                    idx_piece = np.tile(val, n)
-            else:
-                idx_piece = np.random.choice(a=[True, False], size=1)
-            idx = np.concatenate((idx, idx_piece))
-        return idx
 
-    def mutate(self, prob):
-        """
-        Parameters
-        ----------
-        :prob:  `float`
-        """
+def cross_genes(pg1, pg2):
+    ls = [pg1, pg2]
+    i = np.random.randint(0, 2)
+    g1 = ls[i]  # pylint: disable=invalid-sequence-index
+    g2 = ls[1 - i]
+    return g1, g2
+
+
+def cross_vectorial_genes(pg1, pg2):
+    idx_piece = np.random.choice(a=[True, False], size=len(pg1))
+    g1 = tuple(np.array(pg1)[idx_piece])
+    g2 = tuple(np.array(pg2)[~idx_piece])
+    return g1, g2
+
+
+def cross_unique_vectorial_genes(pg1, pg2):
+    cutpoint = np.random.randint(1, len(pg1))
+    g1 = pg1[0:cutpoint]
+    g2 = pg2[0:cutpoint]
+    rem1 = [v for v in pg2 if v not in g1]
+    rem2 = [v for v in pg1 if v not in g2]
+    remlen = len(pg1) - cutpoint
+    g1 += tuple(rem1[0:remlen])
+    g2 += tuple(rem2[0:remlen])
+    return g1, g2
 
 
 class Tournament(Reproduce):
@@ -115,9 +118,7 @@ class Elitism(Reproduce):
         ----------
         :n_children:    The total amount of children generated. If None is set,
                         the algorithm will keep generating children until the
-                        "natural population level" is reached (default: None).
-
-        Idea
+                  Repopulator
         ----
         couple 01:  creature01 + creature02     ("sum" = 03, "top" = 01)
         couple 02:  creature01 + creature03     ("sum" = 04, "top" = 01)

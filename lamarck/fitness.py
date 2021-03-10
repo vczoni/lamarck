@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
-
 from lamarck.plotter import PopulationPlotterPareto
+from lamarck.utils import is_objective_ascending
 
 
 class FitnessBuilder:
@@ -24,7 +24,8 @@ class FitnessBuilder:
         """
         objective = standardize_objective(objective)
         fitness_df = get_single_criteria(self._pop, output)
-        self._pop.add_fitness(fitness_df, [objective])
+        single_rank = single_rank_deco(output, objective)
+        self._pop.set_fitness(fitness_df, [objective], single_rank)
 
 
 class MultiObjectiveFitness:
@@ -51,7 +52,8 @@ class MultiObjectiveFitness:
         """
         objectives = standardize_objectives(objectives)
         fitness_df = build_criteria_df(self._pop, priorities, objectives)
-        self._pop.add_fitness(fitness_df, objectives)
+        ranked_rank = ranked_rank_deco(priorities, objectives)
+        self._pop.set_fitness(fitness_df, objectives, ranked_rank)
 
     def pareto(self, outputs, objectives, p=0.5):
         """
@@ -78,8 +80,9 @@ class MultiObjectiveFitness:
         fronts = get_pareto_fronts(criteria_df_norm, objectives, p)
         crowd = get_pareto_crowds(criteria_df_norm, fronts)
         fitness_df = criteria_df_norm.assign(front=fronts, crowd=crowd)
-        self._pop.add_fitness(fitness_df,
+        self._pop.set_fitness(fitness_df,
                               objectives=['min', 'max'],
+                              rank_method=pareto_rank,
                               fitness_cols=['front', 'crowd'])
         self._pop._set_plotter(PopulationPlotterPareto)
 
@@ -167,6 +170,40 @@ def get_crowd(df):
         sf = pd.Series(sfvals, index=si.index[1:-1])
         s += sf
     return s
+
+# ranking methods
+
+
+def single_rank_deco(output, objective):
+    def rank_wrapper(df):
+        asc = is_objective_ascending(objective)
+        return df[output].rank(method='dense', ascending=asc)
+    return rank_wrapper
+
+
+def ranked_rank_deco(priorities, objectives):
+    def rank_wrapper(df):
+        ranks = []
+        for priority, objective in zip(priorities, objectives):
+            asc = is_objective_ascending(objective)
+            r = df[priority].rank(method='dense', ascending=asc)
+            ranks.append(r)
+        rank = ranks[-1]
+        for r in ranks[::-1]:
+            order = np.ceil(np.log10(r.max()))
+            factor = 10**order
+            rscore = r * factor + rank
+            rank = rscore.rank(method='dense')
+        return rank
+    return rank_wrapper
+
+
+def pareto_rank(df):
+    r1 = df['front'].rank(method='dense')
+    r2 = df['crowd'].rank(method='dense', ascending=False)
+    order1 = np.ceil(np.log10(r2.max()))
+    factor1 = 10**order1
+    return (r1 * factor1 + r2).rank(method='dense')
 
 
 # decorators

@@ -5,7 +5,7 @@ from lamarck import Creature
 from lamarck.fitness import FitnessBuilder
 from lamarck.repopulate import Repopulator
 from lamarck.plotter import PopulationPlotter
-from lamarck.utils import genome_already_exists
+from lamarck.utils import genome_already_exists, is_objective_ascending
 
 
 class Population:
@@ -31,14 +31,18 @@ class Population:
     # (step 3)
     >>> env = Environment()
     >>> env.set_process(the_function)
-    >>> pop_fit = env.simulate(pop)
-    # where "pop_fit" is the population with the results of the simulations
-    >>> pareto_fit = pop_fit\
-        .fitness\
+    >>> env.simulate(pop)
+    # "pop" will now store the results of the simulations
+    >>> pop\
+        .apply_fitness\
         .multi_objective\
-        .pareto(outputs=['a', 'b'], objective=['min', 'max'])                   # (step 4)
-    # (step 5 & 6)
-    >>> new_pop = pareto_fit.reproduce.cross_over(p=0.5, p_mutation=0.01)
+        .pareto(outputs=['a', 'b'], objective=['min', 'max'])
+    # (step 4)
+    >>> selected_pop = pop.select(p=0.5)
+    # (step 5)
+    >>> selected_pop.reproduce.tournamet()
+    # (step 5)
+    >>> selected_pop.reproduce.mutate()
     """
 
     def __init__(self, genome_blueprint):
@@ -46,6 +50,7 @@ class Population:
         self.generation = 0
         self.genes = list(genome_blueprint)
         self.natural_population_level = 0
+        self._fitness_rank = None
         # instances
         self.populate = Populator(self)
         self.datasets = PopulationDatasets(self)
@@ -74,17 +79,12 @@ class Population:
             .reset_index(drop=True)
         new_pop = Population(genome_blueprint)
         new_pop.populate.from_genome_dataframe(df)
+        new_pop.datasets._drop_duplicates()
         return new_pop
 
     def _set_plotter(self, plotter_class):
         self.plot = plotter_class(self)
         self._plotter_class = plotter_class
-
-    def drop_duplicates(self):
-        """
-        Returns a Population based on this one, without duplicates.
-        """
-        self.datasets._drop_duplicates()
 
     def copy(self):
         genome_blueprint = deepcopy(self.genome_blueprint)
@@ -92,6 +92,7 @@ class Population:
         new_pop.datasets._absorb(self.datasets)
         new_pop.natural_population_level = self.natural_population_level
         new_pop.generation = self.generation
+        new_pop._fitness_rank = self._fitness_rank
         new_pop._set_plotter(self._plotter_class)
         return new_pop
 
@@ -137,15 +138,23 @@ class Population:
         """
         self.datasets._add_output(output_df)
 
-    def add_fitness(self, fitness_df, objectives, fitness_cols=None):
+    def set_fitness(self, fitness_df, objectives, rank_method,
+                    fitness_cols=None):
         """
         Parameters
         ----------
         :fitness_df:    `DataFrame`
         :objectives:    `list`
+        :rank_method:   `function`
         :fitness_cols:  `list` (Default: None)
         """
         self.datasets._set_fitness(fitness_df, objectives, fitness_cols)
+        self._fitness_rank = rank_method
+
+    @property
+    def fitness_rank(self):
+        if self._fitness_rank is not None:
+            return self._fitness_rank(self.datasets.fitness)
 
     def reset_fitness_objectives(self, fitness_cols, objectives):
         """
@@ -275,6 +284,7 @@ class PopulationDatasets:
 
     def _set(self, df):
         self.input = create_id(df[self._inputcols])
+        self._drop_duplicates()
         self.output = self.input.copy()
         self.fitness = self.input.copy()
 
@@ -293,12 +303,12 @@ class PopulationDatasets:
         self.output.update(output_df, overwrite=False)
 
     def _add_creature(self, genome_df):
-        genome = next(genome_df.iterrows())[1].to_dict()
-        if not genome_already_exists(genome, self._pop):
-            self.input = pd.concat((self.input, genome_df))
-            self._update_datasets()
+        self.input = pd.concat((self.input, genome_df))
+        self._drop_duplicates()
+        self._update_datasets()
 
     def _update_datasets(self):
+        self._drop_duplicates()
         self.output = pd\
             .merge(self.input, self.output, 'left')\
             .set_index(self.index)
@@ -315,8 +325,6 @@ class PopulationDatasets:
 
     def _drop_duplicates(self):
         self.input = self.input.drop_duplicates()
-        self.output = self.output.drop_duplicates()
-        self.fitness = self.fitness.drop_duplicates()
 
     @property
     def _ascending(self):
@@ -402,13 +410,3 @@ class CreatureGetter:
 def make_creature_from_df_row(row, genes):
     genome = {gene: val for gene, val in row.items() if gene in genes}
     return Creature(genome)
-
-
-def is_objective_ascending(objective):
-    if objective.lower() in ['min', 'minimize']:
-        ascending = True
-    elif objective.lower() in ['max', 'maximize']:
-        ascending = False
-    else:
-        raise Exception(":objective: must be either 'min' or 'max'.")
-    return ascending

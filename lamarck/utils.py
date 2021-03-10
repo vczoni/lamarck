@@ -1,8 +1,26 @@
+import pandas as pd
+
+
+def idfunc(x):
+    return hash(x)
+
+
+def column_aggregator(df):
+    for col in df.columns:
+        yield df[col]
+
+
+def create_id(df):
+    df = df.copy()
+    colgen = column_aggregator(df)
+    cols = tuple(colgen)
+    idcol = pd.Series(tuple(zip(*cols))).apply(idfunc)
+    return df.assign(id=idcol).set_index('id')
 
 
 def get_id(genome):
     genomevals = tuple(genome.values())
-    return hash(genomevals)
+    return idfunc(genomevals)
 
 
 def genome_already_exists(genome, pop):

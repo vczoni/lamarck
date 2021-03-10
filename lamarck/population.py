@@ -1,11 +1,12 @@
+from copy import deepcopy
 import numpy as np
 import pandas as pd
-from copy import deepcopy
 from lamarck import Creature
 from lamarck.fitness import FitnessBuilder
 from lamarck.repopulate import Repopulator
 from lamarck.plotter import PopulationPlotter
-from lamarck.utils import genome_already_exists, is_objective_ascending
+from lamarck.utils import (create_id, genome_already_exists,
+                           is_objective_ascending)
 
 
 class Population:
@@ -377,19 +378,6 @@ class PopulationDatasets:
             self.input = self.input.loc[index]
             self.output = self.output.loc[index]
             self.fitness = self.fitness.loc[index]
-
-
-def create_id(df):
-    df = df.copy()
-    colgen = column_aggregator(df)
-    cols = tuple(colgen)
-    idcol = pd.Series(tuple(zip(*cols))).apply(hash)
-    return df.assign(id=idcol).set_index('id')
-
-
-def column_aggregator(df):
-    for col in df.columns:
-        yield df[col]
 
 
 class CreatureGetter:

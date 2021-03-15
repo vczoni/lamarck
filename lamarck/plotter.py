@@ -19,7 +19,7 @@ class PopulationPlotter:
         df = self._pop.datasets.output
         return df.plot.scatter(x=x, y=y, **kw)
 
-    def history(self, column, metric=max, secondary_metric=None, **kw):
+    def history(self, column, metric='mean', secondary_metric=None, **kw):
         """
         Scatter plot of the evolution of through multiple generations.
 

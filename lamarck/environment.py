@@ -69,7 +69,7 @@ def get_sim_genomes(pop):
     if out_cols is None:
         df = pop.datasets.input
     else:
-        f = pop.datasets.output.isna().any(axis=1)
+        f = pop.datasets.output[out_cols].isna().all(axis=1)
         index = pop.datasets.index[f]
         df = pop.datasets.input.loc[index]
     return [x[1].to_dict() for x in df.iterrows()]
@@ -100,11 +100,12 @@ def get_outputs(output_dict):
 class EnvironmentConfig:
     def __init__(self):
         self.multi = False
-        self.output_varibles = None
         self.process = None
 
     def __repr__(self):
-        attrlist = [f'{var}:   {val}' for var, val in self.__dict__.items()]
+        varlist = ['multi', 'process']
+        attrlist = [f'{var}:   {val}' for var, val in self.__dict__.items()
+                    if var in varlist]
         return '\n'.join(attrlist)
 
     def set_multi(self, multi):
@@ -112,22 +113,6 @@ class EnvironmentConfig:
         Set Multi Thread simulation (True or False).
         """
         self.multi = multi
-
-    def set_output_varibles(self, *output_variables):
-        """
-        Set the names of the output variables (represented by the keys of the
-        `dict` that the process function returns).
-
-        Parameters
-        ----------
-        :output_variables:  `str` or `list` of `str` with the name(s) of the
-                            output variable(s) 
-        """
-        if isinstance(output_variables, str):
-            output_variables = (output_variables,)
-        elif not isinstance(output_variables, (list, tuple)):
-            raise TypeError(':output_variables: must be `list` or `str`.')
-        self.output_varibles = output_variables
 
     def set_process(self, process):
         """

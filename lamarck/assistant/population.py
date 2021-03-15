@@ -1,8 +1,13 @@
 import itertools
-import math
 import numpy as np
 import pandas as pd
 from lamarck import Population
+from lamarck.utils import (random_linear_dist,
+                           random_log_dist,
+                           deterministic_linear,
+                           deterministic_log,
+                           vectorial_distribution,
+                           vectorial_distribution_set)
 
 
 class PopulationCreator:
@@ -206,21 +211,6 @@ def generate_numeric_distribution(n, ranges, domain):
             f' but instead got {progression}.')
 
 
-def deterministic_linear(start, stop, n, dtype):
-    return np.linspace(start, stop, n, dtype=dtype)
-
-
-def deterministic_log(start, stop, n, dtype):
-    return np.geomspace(start, stop, n, dtype=dtype)
-
-
-def get_dtype(domain):
-    if domain == 'int':
-        return int
-    elif domain == 'float':
-        return float
-
-
 def generate_categorical_distribution(n, domain):
     end = len(domain) - 1
     indexes = np.linspace(0, end, n, dtype=int)
@@ -236,21 +226,11 @@ def generate_vectorial_distribution(n, ranges, domain):
         return vectorial_distribution_set(n, length, domain)
 
 
-def vectorial_distribution(n, length, domain):
-    vectors = [domain] * n
-    perm_gen = itertools.product(*vectors)
-    end = length ** len(domain)
-    step = end // n
-    dist_gen = itertools.islice(perm_gen, 0, end, step)
-    return tuple(dist_gen)
-
-
-def vectorial_distribution_set(n, length, domain):
-    perm_gen = itertools.permutations(domain, length)
-    end = math.perm(len(domain), length)
-    step = end // n
-    dist_gen = itertools.islice(perm_gen, 0, end, step)
-    return tuple(dist_gen)
+def get_dtype(domain):
+    if domain == 'int':
+        return int
+    elif domain == 'float':
+        return float
 
 
 # for randomly numeric distribution
@@ -295,22 +275,6 @@ def generate_numeric_random_distribution(n, ranges, domain):
         raise Exception(
             'Gene progression must be "linear" or "log"'
             f' but instead got {progression}.')
-
-
-def random_linear_dist(start, stop, n, dtype):
-    return np.random.uniform(start, stop, n).astype(dtype)
-
-
-def random_log_dist(start, stop, n, dtype):
-    dist = [random_log(start, stop) for _ in n]
-    return np.array(dist, dtype=dtype)
-
-
-def random_log(start, stop):
-    lstart = np.log(start)
-    lstop = np.log(stop)
-    val = np.random.uniform(lstart, lstop)
-    return np.exp(val)
 
 
 def generate_categorical_random_distribution(n, domain):

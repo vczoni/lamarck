@@ -1,13 +1,46 @@
 import numpy as np
 import pandas as pd
 from lamarck.plotter import PopulationPlotterPareto
-from lamarck.utils import is_objective_ascending
+from lamarck.utils import is_objective_ascending, compare_to_value
 
 
 class FitnessBuilder:
     def __init__(self, population):
         self._pop = population
-        self.multi_objective = MultiObjectiveFitness(population)
+        self.multi_objective = MultiObjectiveFitness(self)
+        self.reset_constraints()
+        self.add_constraint = ConstraintAssistant(self)
+
+    def reset_constraints(self):
+        self._constraints = {}
+
+    def set_constraints(self, constraints):
+        """
+        Set Output Constraints to invalidade outputs that fall off the requirements.
+
+        Parameters
+        ----------
+        :constraints:   `dict` with the output names as `keys` and the constraints
+                        as `values`. The constraints must be tuples with the
+                        contraint_type-contraint_value pair. 
+
+        Example
+        -------
+            - constraints = {
+                'x': ('gt', 0),    # x must be Greater Than 0
+                'y': ('le', 'x')   # y must be Less or Equal to x
+            }
+
+        Available Constraints
+        ---------------------
+            - 'eq'      EQual to
+            - 'neq'     Not EQual to
+            - 'lt'      Less Than
+            - 'le'      Less than or Equal to
+            - 'gt'      Greater Than
+            - 'ge'      Greater than or Equal to
+        """
+        self._constraints = constraints
 
     def single_objective(self, output, objective):
         """
@@ -23,14 +56,30 @@ class FitnessBuilder:
                     - 'maximize' (or 'max')
         """
         objective = standardize_objective(objective)
-        fitness_df = get_single_criteria(self._pop, output)
+        fconstraints = self.get_constraints_filter()
+        fitness_df = get_single_criteria(self._pop, output, fconstraints)
         single_rank = single_rank_deco(output, objective)
         self._pop.set_fitness(fitness_df, [objective], single_rank)
 
+    def get_constraints_filter(self):
+        if any(self._constraints):
+            output_df = self._pop.datasets.output.copy()
+            f = pd.Series(np.ones(len(output_df), dtype=bool),
+                          index=self._pop.datasets.index)
+            for output, (oper, val) in self._constraints.items():
+                if isinstance(val, str):
+                    val = output_df[val]
+                col = output_df[output]
+                f = f & compare_to_value(col, oper, val)
+        else:
+            f = None
+        return f
+
 
 class MultiObjectiveFitness:
-    def __init__(self, population):
-        self._pop = population
+    def __init__(self, fitnessbuilder):
+        self._fitnessbuilder = fitnessbuilder
+        self._pop = fitnessbuilder._pop
 
     def ranked(self, priorities, objectives):
         """
@@ -51,7 +100,9 @@ class MultiObjectiveFitness:
                         - 'maximize' (or 'max')
         """
         objectives = standardize_objectives(objectives)
-        fitness_df = build_criteria_df(self._pop, priorities, objectives)
+        fconstraints = self._fitnessbuilder.get_constraints_filter()
+        fitness_df = build_criteria_df(self._pop, priorities, objectives,
+                                       fconstraints)
         ranked_rank = ranked_rank_deco(priorities, objectives)
         self._pop.set_fitness(fitness_df, objectives, ranked_rank)
 
@@ -75,7 +126,9 @@ class MultiObjectiveFitness:
                         (default: 0.5)
         """
         objectives = standardize_objectives(objectives)
-        criteria_df = build_criteria_df(self._pop, outputs, objectives)
+        fconstraints = self._fitnessbuilder.get_constraints_filter()
+        criteria_df = build_criteria_df(self._pop, outputs, objectives,
+                                        fconstraints)
         criteria_df_norm = normalize(criteria_df)
         fronts = get_pareto_fronts(criteria_df_norm, objectives, p)
         crowd = get_pareto_crowds(criteria_df_norm, fronts)
@@ -87,10 +140,10 @@ class MultiObjectiveFitness:
         self._pop._set_plotter(PopulationPlotterPareto)
 
 
-def build_criteria_df(pop, criteria, objectives):
+def build_criteria_df(pop, criteria, objectives, fconstraints=None):
     n_criteria = len(criteria)
     objectives = assert_objective_list(objectives, n_criteria)
-    criteria_dfs = [get_single_criteria(pop, output, suffix=i)
+    criteria_dfs = [get_single_criteria(pop, output, fconstraints, suffix=i)
                     for i, output in enumerate(criteria)]
     return pd.concat(criteria_dfs, axis=1)
 
@@ -103,10 +156,13 @@ def assert_objective_list(objectives, n):
     return objectives
 
 
-def get_single_criteria(pop, output, suffix=''):
-    criteria = pop.datasets.output[output]
+def get_single_criteria(pop, output, fconstraints=None, suffix=''):
+    if fconstraints is None:
+        criteria = pop.datasets.output[output]
+    else:
+        criteria = pop.datasets.output[fconstraints][output]
     data = {f'criteria{suffix}': criteria}
-    return pd.DataFrame(data, index=pop.datasets.index)
+    return pd.DataFrame(data, index=criteria.index)
 
 
 def standardize_objectives(objectives):
@@ -225,3 +281,34 @@ def n_dominators_deco(ids):
     def mapper(x):
         return len(np.intersect1d(ids, x))
     return mapper
+
+
+# Constraint Assistant
+
+class ConstraintAssistant:
+    def __init__(self, fitnessbuilder):
+        self._fitnessbuilder = fitnessbuilder
+
+    def equal_to(self, output, value):
+        constraint = {output: ('eq', value)}
+        self._fitnessbuilder._constraints.update(constraint)
+
+    def not_equal_to(self, output, value):
+        constraint = {output: ('neq', value)}
+        self._fitnessbuilder._constraints.update(constraint)
+
+    def less_than(self, output, value):
+        constraint = {output: ('lt', value)}
+        self._fitnessbuilder._constraints.update(constraint)
+
+    def less_or_equal(self, output, value):
+        constraint = {output: ('le', value)}
+        self._fitnessbuilder._constraints.update(constraint)
+
+    def greater_than(self, output, value):
+        constraint = {output: ('gt', value)}
+        self._fitnessbuilder._constraints.update(constraint)
+
+    def greater_or_equal(self, output, value):
+        constraint = {output: ('ge', value)}
+        self._fitnessbuilder._constraints.update(constraint)

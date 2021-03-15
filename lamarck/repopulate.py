@@ -1,10 +1,12 @@
 import numpy as np
+from lamarck.utils import random_linear, random_log
 
 
 class Repopulator:
     def __init__(self, population):
         self.tournament = Tournament(population)
         self.elitism = Elitism(population)
+        self.mutate = Mutation(population)
 
 
 class Reproduce:
@@ -14,9 +16,15 @@ class Reproduce:
     @property
     def _genome_blueprint(self): return self._pop.genome_blueprint
 
-    def _populate(self, parent1, parent2):
-        child_genomes = self._cross_over(parent1.genome, parent2.genome)
-        self._pop.populate.from_genome_list(list(child_genomes))
+    def _get_parents(self, idx1, idx2):
+        id1 = self._pop.datasets.fitness.index[idx1]
+        id2 = self._pop.datasets.fitness.index[idx2]
+        parent1 = self._pop.get_creature.from_id(id1)
+        parent2 = self._pop.get_creature.from_id(id2)
+        return parent1, parent2
+
+    def _populate(self, genomes):
+        self._pop.populate.from_genome_list(list(genomes))
 
     def _cross_over(self, pgenome1, pgenome2):
         flag = True
@@ -86,16 +94,16 @@ class Tournament(Reproduce):
         """
         n_potential_parents = len(self._pop)
         n_final_pop = get_n_final_pop(self._pop, n_children)
-        while len(self._pop) < n_final_pop:
-            parent1, parent2 = self\
-                ._get_parents(n_potential_parents, n_dispute)
-            self._populate(parent1, parent2)
-
-    def _get_parents(self, n_pop, n_dispute):
-        idx1, idx2 = get_parents_min_index(n_pop, n_dispute)
-        parent1 = self._pop.get_creature.from_index(idx1)
-        parent2 = self._pop.get_creature.from_index(idx2)
-        return parent1, parent2
+        n = n_final_pop - len(self._pop)
+        genome_list = []
+        for _ in range(int(n/2)+1):
+            idx1, idx2 = get_parents_min_index(n_potential_parents,
+                                               n_dispute)
+            parent1, parent2 = self._get_parents(idx1, idx2)
+            child_genomes = self._cross_over(parent1.genome,
+                                             parent2.genome)
+            genome_list += list(child_genomes)
+        self._populate(genome_list)
 
 
 def get_parents_min_index(n_pop, n_dispute):
@@ -118,7 +126,7 @@ class Elitism(Reproduce):
         ----------
         :n_children:    The total amount of children generated. If None is set,
                         the algorithm will keep generating children until the
-                  Repopulator
+                        Repopulator
         ----
         couple 01:  creature01 + creature02     ("sum" = 03, "top" = 01)
         couple 02:  creature01 + creature03     ("sum" = 04, "top" = 01)
@@ -144,15 +152,15 @@ class Elitism(Reproduce):
         """
         n_final_pop = get_n_final_pop(self._pop, n_children)
         parent_generator = generate_elite_parent_pair()
-        while len(self._pop) < n_final_pop:
+        n = n_final_pop - len(self._pop)
+        genome_list = []
+        for _ in range(int(n/2)+1):
             idx1, idx2 = next(parent_generator)
             parent1, parent2 = self._get_parents(idx1, idx2)
-            self._populate(parent1, parent2)
-
-    def _get_parents(self, idx1, idx2):
-        parent1 = self._pop.get_creature.from_index(idx1)
-        parent2 = self._pop.get_creature.from_index(idx2)
-        return parent1, parent2
+            child_genomes = self._cross_over(parent1.genome,
+                                             parent2.genome)
+            genome_list += list(child_genomes)
+        self._populate(genome_list)
 
 
 # I know this code (the next two functions) is filthy but this turned out to be
@@ -185,6 +193,80 @@ def subset_sum(numbers, target, partial=[], partial_sum=0):
     for i, n in enumerate(numbers):
         remaining = numbers[i + 1:]
         yield from subset_sum(remaining, target, partial + [n], partial_sum + n)
+
+
+class Mutation(Reproduce):
+    def __call__(self, p, n_genes=1):
+        """
+        Generates new creatures by randomly picking Creatures based on the
+        :mutation probability (p): and randomly changing :n_genes: gene(s).
+
+        Parameters
+        ----------
+        :p:         `float` - Mutation probability.
+        :n_genes:   `int` - Number of genes tha will be altered (default: 1).
+        """
+        n = len(self._pop)
+        f_creatures = np.random.rand(n) < p
+        if any(f_creatures):
+            to_be_mutated = self._pop.datasets.input[f_creatures]
+            genome_list = [mutate(x[1].to_dict(),
+                                  n_genes,
+                                  self._genome_blueprint)
+                           for x in to_be_mutated.iterrows()]
+            self._populate(genome_list)
+
+
+def mutate(genome, n, blueprint):
+    genes = list(genome.keys())
+    idxs = np.random.choice(range(len(genes)), replace=False, size=n)
+    for idx in idxs:
+        gene = genes[idx]
+        val = genome[gene]
+        specs = blueprint[gene]
+        if specs['type'] == 'numeric':
+            new_val = mutate_numeric(val, specs)
+        elif specs['type'] == 'categorical':
+            new_val = mutate_categorical(val, specs)
+        elif specs['type'] == 'vectorial':
+            new_val = mutate_vectorial(val, specs)
+        genome.update({gene: new_val})
+    return genome
+
+
+def mutate_numeric(val, specs):
+    minval = specs['ranges']['min']
+    maxval = specs['ranges']['max']
+    flag = True
+    while flag:
+        if specs['ranges']['progression'] == 'linear':
+            new_val = random_linear(minval, maxval)
+        if specs['ranges']['progression'] == 'log':
+            new_val = random_log(minval, maxval)
+        if specs['domain'] == 'int':
+            new_val = int(new_val)
+        flag = new_val == val
+    return new_val
+
+
+def mutate_categorical(val, specs):
+    domain = specs['domain']
+    flag = True
+    while flag:
+        new_val = np.random.choice(domain)
+        flag = new_val == val
+    return new_val
+
+
+def mutate_vectorial(val, specs):
+    domain = specs['domain']
+    length = specs['ranges']['length']
+    replace = specs['ranges']['replace']
+    flag = True
+    while flag:
+        new_val = np.random.choice(domain, length, replace=replace)
+        flag = new_val == val
+    return new_val
 
 
 def get_n_final_pop(pop, n_children):

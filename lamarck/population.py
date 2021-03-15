@@ -50,7 +50,7 @@ class Population:
         self.genome_blueprint = genome_blueprint
         self.generation = 0
         self.genes = list(genome_blueprint)
-        self.natural_population_level = 0
+        self.natural_population_level = None
         self._fitness_rank = None
         # instances
         self.populate = Populator(self)
@@ -97,11 +97,19 @@ class Population:
         new_pop._set_plotter(self._plotter_class)
         return new_pop
 
-    def define(self):
+    def define(self, n=None):
         """
-        Define that this Population's size is the "normal" state.
+        Define the Population's "normal" size.
+
+        Parameters
+        ----------
+        :n:     `int` representing the size. If `None`, the current population
+                size will be considered the norm (default: `None`).
         """
-        self.natural_population_level = len(self)
+        if n is None:
+            self.natural_population_level = len(self)
+        else:
+            self.natural_population_level = n
 
     def save_to_history(self):
         """
@@ -168,14 +176,18 @@ class Population:
 
     def select(self, p=0.5):
         """
+        Parameters
+        ----------
+        :p:     `float`
         """
-        pop = self.copy()
-        pop.datasets._select(p)
-        pop.set_generation(self.generation + 1)
-        return pop
+        self.datasets._select(p)
+        self.set_generation(self.generation + 1)
 
     def set_generation(self, generation):
         """
+        Parameters
+        ----------
+        :generation:     `int`
         """
         self.generation = generation
 
@@ -202,9 +214,9 @@ class Populator:
         ----------
         :genome:  `dict` representing the `Creature`'s genome.
         """
-        raw_genome_df = pd.DataFrame({k: [v] for k, v in genome.items()})
+        raw_genome_df = pd.DataFrame({gene: [v] for gene, v in genome.items()})
         genome_df = create_id(raw_genome_df)
-        self._pop.datasets._add_creature(genome_df)
+        self._pop.datasets._add_creatures(genome_df)
 
     def from_creature_list(self, creature_list):
         """
@@ -226,8 +238,11 @@ class Populator:
         :genome_list:   `list` of Genomes that will become the Creatures that will
                         be added to the Population.
         """
-        for genome in genome_list:
-            self.from_genome(genome)
+        genes = genome_list[0].keys()
+        genome_data = {gene: [g[gene] for g in genome_list] for gene in genes}
+        raw_genome_df = pd.DataFrame(genome_data)
+        genome_df = create_id(raw_genome_df)
+        self._pop.datasets._add_creatures(genome_df)
 
     def from_genome_dataframe(self, dataframe):
         """
@@ -303,9 +318,8 @@ class PopulationDatasets:
     def _add_output(self, output_df):
         self.output.update(output_df, overwrite=False)
 
-    def _add_creature(self, genome_df):
+    def _add_creatures(self, genome_df):
         self.input = pd.concat((self.input, genome_df))
-        self._drop_duplicates()
         self._update_datasets()
 
     def _update_datasets(self):
@@ -317,15 +331,16 @@ class PopulationDatasets:
             .merge(self.input, self.fitness, 'left')\
             .set_index(self.index)
 
+    def _drop_duplicates(self):
+        self.input = self.input.drop_duplicates()
+
     def _set_fitness(self, fitness_df, objectives, fitness_cols=None):
         if fitness_cols is None:
             fitness_cols = list(fitness_df.columns)
         self._set_fitness_objectives(fitness_cols, objectives)
-        self.fitness = pd.concat((self.output, fitness_df), axis=1)
+        self.fitness = pd.concat(
+            (self.output, fitness_df), join='inner', axis=1)
         self._sort_fitness()
-
-    def _drop_duplicates(self):
-        self.input = self.input.drop_duplicates()
 
     @property
     def _ascending(self):
@@ -372,12 +387,20 @@ class PopulationDatasets:
                 "Population wasn't tested yet (Fitness Dataset does't exist)."
             )
         else:
+            if self._pop.natural_population_level is None:
+                npop = len(self.fitness)
+            else:
+                npop = self._pop.natural_population_level
             self._add_to_history(self.fitness)
-            n_fittest = int(len(self.fitness) * p)
+            n_fittest = int(npop * p)
             index = self.fitness[0:n_fittest].index
             self.input = self.input.loc[index]
             self.output = self.output.loc[index]
             self.fitness = self.fitness.loc[index]
+
+    def get_generation_from_history(self, generation):
+        f = self.history.generation == generation
+        return self.history[f]
 
 
 class CreatureGetter:

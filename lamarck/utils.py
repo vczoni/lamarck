@@ -78,11 +78,15 @@ def vectorial_distribution(n, length, domain):
 
 
 def vectorial_distribution_set(n, length, domain):
-    perm_gen = itertools.permutations(domain, length)
     end = np.math.perm(len(domain), length)
-    step = end // n
-    dist_gen = itertools.islice(perm_gen, 0, end, step)
-    return tuple(dist_gen)
+    if end > 1e9:  # if too many permutations, randomize to avoid performance issues
+        dist = tuple(make_vector_list(n, length, domain, False))
+    else:
+        perm_gen = itertools.permutations(domain, length)
+        step = end // n
+        dist_gen = itertools.islice(perm_gen, 0, end, step)
+        dist = tuple(dist_gen)
+    return dist
 
 
 def random_linear(start, stop):
@@ -103,3 +107,8 @@ def random_log(start, stop):
     lstop = np.log(stop)
     val = np.random.uniform(lstart, lstop)
     return np.exp(val)
+
+
+def make_vector_list(n, length, domain, replace):
+    return [tuple(np.random.choice(domain, length, replace=replace))
+            for _ in range(n)]

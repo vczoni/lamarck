@@ -265,8 +265,8 @@ def mutate_vectorial(val, specs):
     flag = True
     while flag:
         new_val = np.random.choice(domain, length, replace=replace)
-        flag = new_val == val
-    return new_val
+        flag = all(new_val == val)
+    return tuple(new_val)
 
 
 def get_n_final_pop(pop, n_children):

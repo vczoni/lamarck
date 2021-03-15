@@ -7,7 +7,8 @@ from lamarck.utils import (random_linear_dist,
                            deterministic_linear,
                            deterministic_log,
                            vectorial_distribution,
-                           vectorial_distribution_set)
+                           vectorial_distribution_set,
+                           make_vector_list)
 
 
 class PopulationCreator:
@@ -247,25 +248,23 @@ def randomly_make_population(n, blueprint):
 
 def get_random_vals_from_blueprint(n, specs):
     gene_type = specs['type']
-    domain = specs['domain']
     if gene_type == 'numeric':
-        ranges = specs['ranges']
-        return generate_numeric_random_distribution(n, ranges, domain)
+        return generate_numeric_random_distribution(n, specs)
     elif gene_type == 'categorical':
-        return generate_categorical_random_distribution(n, domain)
+        return generate_categorical_random_distribution(n, specs)
     elif gene_type == 'vectorial':
-        ranges = specs['ranges']
-        return generate_vectorial_random_distribution(n, ranges, domain)
+        return generate_vectorial_random_distribution(n, specs)
     else:
         raise Exception(
             'Gene type must be "numeric", "categorical" or "vectorial"'
             f' but instead got {gene_type}.')
 
 
-def generate_numeric_random_distribution(n, ranges, domain):
-    start = ranges['min']
-    stop = ranges['max']
-    progression = ranges['progression']
+def generate_numeric_random_distribution(n, specs):
+    domain = specs['domain']
+    start = specs['ranges']['min']
+    stop = specs['ranges']['max']
+    progression = specs['ranges']['progression']
     dtype = get_dtype(domain)
     if progression == 'linear':
         return random_linear_dist(start, stop, n, dtype)
@@ -277,12 +276,13 @@ def generate_numeric_random_distribution(n, ranges, domain):
             f' but instead got {progression}.')
 
 
-def generate_categorical_random_distribution(n, domain):
+def generate_categorical_random_distribution(n, specs):
+    domain = specs['domain']
     return np.random.choice(domain, n)
 
 
-def generate_vectorial_random_distribution(n, ranges, domain):
-    replace = ranges['replace']
-    length = ranges['length']
-    return [tuple(np.random.choice(domain, length, replace=replace))
-            for _ in range(n)]
+def generate_vectorial_random_distribution(n, specs):
+    domain = specs['domain']
+    replace = specs['ranges']['replace']
+    length = specs['ranges']['length']
+    return make_vector_list(n, length, domain, replace)

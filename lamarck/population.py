@@ -408,13 +408,27 @@ class CreatureGetter:
         self._pop = population
 
     def from_id(self, idval):
+        """
+        Get Creature from the Input Dataset based on its unique ID.
+        """
         df = self._pop.datasets.input
         row = df.loc[idval]
         return make_creature_from_df_row(row, self._pop.genes)
 
     def from_index(self, index):
+        """
+        Get Creature from the Input Dataset based on its position index.
+        """
         df = self._pop.datasets.input
         row = df.iloc[index]
+        return make_creature_from_df_row(row, self._pop.genes)
+
+    def best(self):
+        """
+        Get the Best Creature from the Fitness Dataset.
+        """
+        df = self._pop.datasets.fitness
+        row = df.iloc[0]
         return make_creature_from_df_row(row, self._pop.genes)
 
 

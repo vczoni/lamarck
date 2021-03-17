@@ -7,7 +7,7 @@ The Process must be a Python `function` with one or more input parameters and mu
 ##### Basic Flow
 
 > ```raw
-> Genome Blueprint --> Population --> Process --> Results --> Selection --> Mutation`
+> Genome Blueprint --> Population --> Process --> Results --> Selection --> Mutation
 >                         ^                                                      |
 >                         +--(repeat)--------------------------------------------+
 > ```

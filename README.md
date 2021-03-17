@@ -191,7 +191,7 @@ genome_blueprint = {
 # This genome blueprint will help build the population with multiple values for
 # the variables `num_var`, `cat_var`, `vec_var` and `vec_var_replace`
 
-# In this case, the "Process" must be a Function that has those variable as
+# In this case, the "Process" must be a Function that has those variables as
 # parameters... oh and the output MUST ALWAYS be a `dict` with all the desired
 # outputs.
 def some_process(num_var, cat_var, vec_var, vec_var_replace):

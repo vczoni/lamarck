@@ -161,8 +161,11 @@ class Creator:
 # for deterministic numeric distribution
 
 def deterministically_make_population(n, blueprint):
-    n_dict = {name: n for name in blueprint}
-    return deterministically_make_population_from_dict(n_dict, blueprint)
+    if n > 0:
+        n_dict = {name: n for name in blueprint}
+        return deterministically_make_population_from_dict(n_dict, blueprint)
+    else:
+        return Population(blueprint)
 
 
 def deterministically_make_population_from_dict(ndict, blueprint):
@@ -238,11 +241,14 @@ def get_dtype(domain):
 
 
 def randomly_make_population(n, blueprint):
-    genes = {gene_name: get_random_vals_from_blueprint(n, specs)
-             for gene_name, specs in blueprint.items()}
-    gene_df = pd.DataFrame(genes)
-    pop = Population(blueprint)
-    pop.populate.from_genome_dataframe(gene_df)
+    if n > 0:
+        genes = {gene_name: get_random_vals_from_blueprint(n, specs)
+                 for gene_name, specs in blueprint.items()}
+        gene_df = pd.DataFrame(genes)
+        pop = Population(blueprint)
+        pop.populate.from_genome_dataframe(gene_df)
+    else:
+        pop = Population(blueprint)
     return pop
 
 

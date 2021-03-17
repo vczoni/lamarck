@@ -69,10 +69,9 @@ def deterministic_log(start, stop, n, dtype):
 
 
 def vectorial_distribution(n, length, domain):
-    vectors = [domain] * n
-    perm_gen = itertools.product(*vectors)
-    end = length ** len(domain)
-    step = end // n
+    perm_gen = itertools.product(domain, repeat=length)
+    end = len(domain) ** length
+    step = int(np.ceil(end / n))
     dist_gen = itertools.islice(perm_gen, 0, end, step)
     return tuple(dist_gen)
 
@@ -83,7 +82,7 @@ def vectorial_distribution_set(n, length, domain):
         dist = tuple(make_vector_list(n, length, domain, False))
     else:
         perm_gen = itertools.permutations(domain, length)
-        step = end // n
+        step = int(np.ceil(end / n))
         dist_gen = itertools.islice(perm_gen, 0, end, step)
         dist = tuple(dist_gen)
     return dist

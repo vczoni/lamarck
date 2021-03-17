@@ -51,7 +51,7 @@ class Population:
         self.generation = 0
         self.genes = list(genome_blueprint)
         self.natural_population_level = None
-        self._fitness_rank = None
+        self.fitness_rank_method = None
         # instances
         self.populate = Populator(self)
         self.datasets = PopulationDatasets(self)
@@ -93,8 +93,10 @@ class Population:
         new_pop.datasets._absorb(self.datasets)
         new_pop.natural_population_level = self.natural_population_level
         new_pop.generation = self.generation
-        new_pop._fitness_rank = self._fitness_rank
+        new_pop.fitness_rank_method = self.fitness_rank_method
         new_pop._set_plotter(self._plotter_class)
+        new_pop.apply_fitness._constraints = deepcopy(
+            self.apply_fitness._constraints)
         return new_pop
 
     def define(self, n=None):
@@ -158,12 +160,12 @@ class Population:
         :fitness_cols:  `list` (Default: None)
         """
         self.datasets._set_fitness(fitness_df, objectives, fitness_cols)
-        self._fitness_rank = rank_method
+        self.fitness_rank_method = rank_method
 
     @property
     def fitness_rank(self):
-        if self._fitness_rank is not None:
-            return self._fitness_rank(self.datasets.fitness)
+        if self.fitness_rank_method is not None:
+            return self.fitness_rank_method(self.datasets.fitness)
 
     def reset_fitness_objectives(self, fitness_cols, objectives):
         """
@@ -425,11 +427,13 @@ class CreatureGetter:
 
     def best(self):
         """
-        Get the Best Creature from the Fitness Dataset.
+        Get the Best Creature(s) from the Fitness Dataset.
         """
-        df = self._pop.datasets.fitness
-        row = df.iloc[0]
-        return make_creature_from_df_row(row, self._pop.genes)
+        f = self._pop.fitness_rank == 1
+        ids = self._pop.fitness_rank[f].index
+        df_best = self._pop.datasets.input.loc[ids]
+        return [make_creature_from_df_row(row, self._pop.genes)
+                for _, row in df_best.iterrows()]
 
 
 def make_creature_from_df_row(row, genes):

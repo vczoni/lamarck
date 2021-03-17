@@ -75,7 +75,7 @@ def cross_unique_vectorial_genes(pg1, pg2):
 
 
 class Tournament(Reproduce):
-    def __call__(self, n_dispute=2, n_children=None):
+    def __call__(self, n_dispute=2, n_children=None, p_children=None):
         """
         Generate offspring by Tournament selection.
 
@@ -88,12 +88,16 @@ class Tournament(Reproduce):
         :n_dispute:     Number of Creatures to dispute each of the two `parent`
                         positions. A bigger number means a less random and more
                         elitist parenting selection (default: 2).
-        :n_children:    The total amount of children generated. If None is set,
+        :n_children:    `int` The total amount of children generated. If None is set,
                         the algorithm will keep generating children until the
                         "natural population level" is reached (default: None).
+        :p_children:    `float` Substitute for the :n_children: param, if the
+                        intention is to provide the number in terms of a proportion
+                        of the Population's current size (:n_children: is
+                        prioritized).
         """
         n_potential_parents = len(self._pop)
-        n_final_pop = get_n_final_pop(self._pop, n_children)
+        n_final_pop = get_n_final_pop(self._pop, n_children, p_children)
         n = n_final_pop - len(self._pop)
         genome_list = []
         for _ in range(int(n/2)+1):
@@ -115,7 +119,7 @@ def get_parents_min_index(n_pop, n_dispute):
 
 
 class Elitism(Reproduce):
-    def __call__(self, n_children=None):
+    def __call__(self, n_children=None, p_children=None):
         """
         Generate offspring by Elitism selection.
 
@@ -124,9 +128,13 @@ class Elitism(Reproduce):
 
         Parameters
         ----------
-        :n_children:    The total amount of children generated. If None is set,
+        :n_children:    `int` The total amount of children generated. If None is set,
                         the algorithm will keep generating children until the
-                        Repopulator
+                        "natural population level" is reached (default: None).
+        :p_children:    `float` Substitute for the :n_children: param, if the
+                        intention is to provide the number in terms of a proportion
+                        of the Population's current size (:n_children: is
+                        prioritized).
         ----
         couple 01:  creature01 + creature02     ("sum" = 03, "top" = 01)
         couple 02:  creature01 + creature03     ("sum" = 04, "top" = 01)
@@ -150,9 +158,9 @@ class Elitism(Reproduce):
             - creature06:     2 times
             - creature07:     1 times
         """
-        n_final_pop = get_n_final_pop(self._pop, n_children)
-        parent_generator = generate_elite_parent_pair()
+        n_final_pop = get_n_final_pop(self._pop, n_children, p_children)
         n = n_final_pop - len(self._pop)
+        parent_generator = generate_elite_parent_pair()
         genome_list = []
         for _ in range(int(n/2)+1):
             idx1, idx2 = next(parent_generator)
@@ -160,6 +168,7 @@ class Elitism(Reproduce):
             child_genomes = self._cross_over(parent1.genome,
                                              parent2.genome)
             genome_list += list(child_genomes)
+        parent_generator.close()
         self._populate(genome_list)
 
 
@@ -171,18 +180,18 @@ class Elitism(Reproduce):
 def generate_elite_parent_pair():
     s = 1
     ls = [0, 1]
+    subsum = subset_sum(ls, s)
     while True:
-        subsum = subset_sum(ls, s)
-        while True:
-            try:
-                crs = next(subsum)
-                if len(crs) == 2:
-                    yield crs
-            except:
-                s += 1
-                ls.append(ls[-1] + 1)
-                break
-    return
+        try:
+            crs = next(subsum)
+            if len(crs) == 2:
+                yield crs
+        except GeneratorExit:
+            return
+        except:
+            s += 1
+            ls.append(ls[-1] + 1)
+            subsum = subset_sum(ls, s)
 
 
 def subset_sum(numbers, target, partial=[], partial_sum=0):
@@ -203,8 +212,8 @@ class Mutation(Reproduce):
 
         Parameters
         ----------
-        :p:         `float` - Mutation probability.
-        :n_genes:   `int` - Number of genes tha will be altered (default: 1).
+        :p:         `float` Mutation probability.
+        :n_genes:   `int` Number of genes tha will be altered (default: 1).
         """
         n = len(self._pop)
         f_creatures = np.random.rand(n) < p
@@ -269,12 +278,14 @@ def mutate_vectorial(val, specs):
     return tuple(new_val)
 
 
-def get_n_final_pop(pop, n_children):
+def get_n_final_pop(pop, n_children, p_children=None):
     n_potential_parents = len(pop)
-    if n_children is None:
+    if n_children is None and p_children is None:
         n_final_pop = pop.natural_population_level
-    else:
+    elif p_children is None:
         n_final_pop = n_potential_parents + n_children
+    else:
+        n_final_pop = int(n_potential_parents * (1 + p_children))
     return n_final_pop
 
 

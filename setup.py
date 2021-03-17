@@ -10,13 +10,14 @@ setup(
     packages=find_packages(),
     version=VERSION,
     license='MIT',
-    description='Genetic Algorithm Project.',
+    description='Genetic Algorithm Prototype.',
     author='Victor Zoni',
     author_email='vczoni@gmail.com',
     url='https://github.com/vczoni/lamarck',
     download_url=VERSION.join(
         ['https://github.com/vczoni/lamarck/archive/v', '.tar.gz']),
-    keywords=['GENETIC', 'ALGORITHM', 'GA', 'BASIC', 'GENERAL'],
+    keywords=['GENETIC', 'ALGORITHM', 'GA', 'BASIC', 'GENERAL',
+              'OPTIMIZATION', 'SIMULATION'],
     install_requires=requirements,
     python_requires='>=3',
     classifiers=[

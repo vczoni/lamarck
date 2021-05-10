@@ -1,8 +1,8 @@
 # Lamarck Optimizer: A Genetic Algorithm Prototype.
 
-The Lamarck package is a simple optimization tool that operates by creating Populations of different solutions, running them through a specific Process (an user-defined function) and selecting, mixing and tweaking the best solutions.
+The Lamarck package is a simple optimization tool that operates by creating Populations of different solutions, running them through a specific Process (an user-defined function) and selecting, mixing and tweaking them to get to the best of a wide range of possibilities.
 
-The Process must be a Python `function` with one or more input parameters and must return a dictionary of outputs. The Solution Space is defined by the "Genome Blueprint", which is a `dict` that determines how those input parameters (genes) will configure a solution (genome) by specifying what are the ranges of those variables and how they behave.
+The Process must be a Python `function` with one or more input parameters and must return a `dict` of outputs. The Solution Space is defined by the "Genome Blueprint", which is a `dict` that determines how those input parameters (genes) will configure a solution (genome) by specifying what are the ranges of those variables and how they behave.
 
 ##### Basic Flow
 
@@ -32,6 +32,7 @@ The Process must be a Python `function` with one or more input parameters and mu
 - **Visualization** Tools
     - Variable pair
     - Evolution of the solutions
+    - Pareto fronts
 
 ## Examples
 ### Basic Example #1
@@ -86,7 +87,7 @@ from salesman import TravelSalesman
 from lamarck import Optimizer
 
 # Defining the Process
-# In order to persist the TravelSalesman class for the Process, we need to
+# In order to persist the TravelSalesman object for the Process, we need to
 # embed it in a function 
 def process_deco(travel_salesman):
     def wrapper(route):
@@ -113,7 +114,7 @@ opt.create_population(n_rand=5000)
 trav_salesman = TravelSalesman(number_of_cities, seed=123)
 process = process_deco(trav_salesman)
 opt.set_process(process)
-# Activate MultiThreading (may speed up things)
+# Activate MultiThreading (may speed things up)
 opt.env.config.set_multi(True)
 
 # Simulate (this will return an optimized population)
@@ -121,7 +122,7 @@ optpop = opt.run.single_objective(output='distance', objective='min')
 
 # Check the best solution
 print(optpop.get_creature.best())
-# [Creature <###id###> - genome: {'route': (1, 19, 4, 17, 14, 8, 5, 15, 10, 11, 2, 9, 18, 3, 0, 6, 13, > , 12, 16)]
+# [Creature <###id###> - genome: {'route': (1, 19, 4, 17, 14, 8, 5, 15, 10, 11, 2, 9, 18, 3, 0, 6, 13, 7, 12, 16)]
 
 # So The best Sequence it found (minimum 'distance' travelled) is:
 # (1, 19, 4, 17, 14, 8, 5, 15, 10, 11, 2, 9, 18, 3, 0, 6, 13, 7, 12, 16)
@@ -143,12 +144,12 @@ print(optpop.get_creature.best())
 >        - progression: str {'linear', 'log'}
 2. Categorical
 
-    2.1. Domain: `list`
+    2.1. Domain: `list` or `tuple`
 >
 
 3. Vectorial
 
-    3.1. Domain: `list`
+    3.1. Domain: `list` or `tuple`
 
     3.2. Ranges
 >       - length: int

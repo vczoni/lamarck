@@ -18,8 +18,9 @@ The Process must be a Python `function` with one or more input parameters and mu
     - **Numeric**
     - **Categorical**
     - **Vectorial**
+    - **Boolean**
 - **Versatile process modelling** (it's just a normal Python function)
-- Optimization of **Single** or **Multiple Objectives**
+- Optimization for **Single** or **Multiple Objectives**
 - Simulation control
     - Maximum **number of Generations**
     - Maximum **Stall** (to halt if the simulation is not finding better solutions)
@@ -53,16 +54,12 @@ opt = Optimizer()
 # (note that 'x' and 'y' are declared, which are the exact same names as the
 # parameters of the function 'process' - *this is required*)
 opt.genome_creator.add_gene_specs.numeric(name='x',
-                                          min=0,
-                                          max=12*np.pi,
-                                          progression='linear',
-                                          domain='float')
+                                          domain=float,
+                                          range=[0, 12*np.pi])
 
 opt.genome_creator.add_gene_specs.numeric(name='y',
-                                          min=0,
-                                          max=12*np.pi,
-                                          progression='linear',
-                                          domain='float')
+                                          domain=float,
+                                          range=[0, 12*np.pi])
 
 # Creating the Population
 opt.create_population(n_det=20, n_rand=600)
@@ -81,9 +78,9 @@ print(optpop.get_creature.best())
 ```
 
 ### Basic Example #2 - Travelling Salesman
-(This one uses the module `docs/notebooks/salesman.py`)
+(This one uses the module `docs/examples/toymodules/salesman.py`)
 ```python
-from salesman import TravelSalesman
+from toymodules.salesman import TravelSalesman
 from lamarck import Optimizer
 
 # Defining the Process
@@ -103,9 +100,9 @@ opt = Optimizer()
 number_of_cities = 20
 cities = tuple(range(number_of_cities))
 opt.genome_creator.add_gene_specs.vectorial(name='route',
-                                            length=number_of_cities,
+                                            domain=cities,
                                             replace=False,
-                                            domain=cities)
+                                            length=number_of_cities)
 
 # Creating the Population (5000 randomly generated 'route's)
 opt.create_population(n_rand=5000)
@@ -129,43 +126,35 @@ print(optpop.get_creature.best())
 
 # Just so you know, there are 1.216.451.004.088.320.000 different Routes in
 # this problem (of 20 cities that are all interconnected), so THE best solution
-# is REALLY HARD to find but the algorithm will get very close very fast)
+# is REALLY HARD to find but the algorithm will get very close very fast
 ```
 
 ### Genome Specifications
 
 1. Numeric
+    1.1. Domain: `<class> {int, float}`
+    1.2. Range: `list or tuple: [min, max] or (min, max)`
+>
 
-    1.1. Domain: `str {'int', 'float'}`
-
-    1.2. Ranges
->        - min: number
->        - max: number
->        - progression: str {'linear', 'log'}
 2. Categorical
-
-    2.1. Domain: `list` or `tuple`
+    2.1. Domain: `list or tuple`
 >
 
 3. Vectorial
+    3.1. Domain: `list or tuple`
+    3.2. Replacement: `bool {True, False}`
+    3.3. Length: `int`
+>
 
-    3.1. Domain: `list` or `tuple`
-
-    3.2. Ranges
->       - length: int
->       - replace: bool {True, False}
-
-### Genome Example
+4. Boolean
+>
+#### Genome Example
 ```python
 genome_blueprint = {
     'num_var': {
         'type': 'numeric',
-        'domain': 'int',
-        'ranges': {
-            'min': 0,
-            'max': 10,
-            'progression': 'linear',
-        }
+        'domain': int,
+        'range': [0, 10] # [min, max]
     },
     'cat_var': {
         'type': 'categorical',
@@ -174,19 +163,18 @@ genome_blueprint = {
     'vec_var': {
         'type': 'vectorial',
         'domain': [0, 1, 2, 3, 4, 5],
-        'ranges': {
-            'length': 3, # lenght CANNOT be greater than the domain's length
-            'replace': False,
-        }
+        'replacement': False,
+        'length': 3, # lenght CANNOT be greater than the domain's length
     },
     'vec_var_replace': {
         'type': 'vectorial',
         'domain': ['i', 'j', 'k'],
-        'ranges': {
-            'length': 5, # lenght CAN be greater than the domain's length because of the replacement
-            'replace': True,
-        }
+        'replacement': True,
+        'length': 5, # lenght CAN be greater than the domain's length because of the replacement
     },
+    'bool_var': {
+        'type': 'boolean',
+    }
 }
 
 # This genome blueprint will help build the population with multiple values for
@@ -195,9 +183,9 @@ genome_blueprint = {
 # In this case, the "Process" must be a Function that has those variables as
 # parameters... oh and the output MUST ALWAYS be a `dict` with all the desired
 # outputs.
-def some_process(num_var, cat_var, vec_var, vec_var_replace):
+def some_process(num_var, cat_var, vec_var, vec_var_replace, bool_var):
     return {'output_1': ...}
 ```
 
-##### For more examples and use cases, check the `docs/notebooks` directory.
+##### For more examples and use cases, check out the `docs/examples` directory.
 

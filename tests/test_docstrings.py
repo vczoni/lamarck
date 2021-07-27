@@ -1,5 +1,5 @@
 import doctest
-from lamarck import blueprintbuilder
+from lamarck import blueprint
 
 
-doctest.testmod(blueprintbuilder)
+doctest.testmod(blueprint)

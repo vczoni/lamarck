@@ -1,5 +1,4 @@
 import unittest
-import doctest
 import numpy as np
 
 
@@ -16,7 +15,7 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         """
         Test if resetting the blueprint actually garantees that the :_blueprint:
         attribute is actually an empty `dict`
-        
+
         Tests
         -----
         1. Test if newly created buider has an empty blueprint
@@ -26,15 +25,15 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
 
         # Test 1
         builder = GenomeBlueprintBuilder()
-        actual = builder.get_blueprint()
+        actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
 
         # Test 2
         builder._blueprint.update({'a': 1})
         builder.reset()
-        actual = builder.get_blueprint()
+        actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
-    
+
     def test_get_blueprint(self):
         """
         Test geting the current blueprint from the builder.
@@ -67,9 +66,9 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         builder.add_vectorial_gene(name='z', domain=(0, 1), replacement=True,
                                    length=8)
         builder.add_boolean_gene(name='w')
-        actual = builder.get_blueprint()
+        actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
-    
+
     def test_adding_numeric_gene(self):
         """
         Test adding numeric Genes to the Blueprint.
@@ -101,7 +100,7 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         builder.add_numeric_gene(name='y',
                                  domain=float,
                                  range=[0, 6*np.pi])
-        actual = builder.get_blueprint()
+        actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
 
         # Test 2
@@ -109,7 +108,7 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
             builder.add_numeric_gene(name='x',
                                      domain=bool,
                                      range=[False, True])
-    
+
     def test_adding_categorical_gene(self):
         """
         Test adding categorical Genes to the Blueprint.
@@ -131,9 +130,9 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
                                      domain=['Jake', 'Amy', 'Raymond', 'Rosa'])
         builder.add_categorical_gene(name='ages',
                                      domain=[35, 34, 53, 29])
-        actual = builder.get_blueprint()
+        actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
-    
+
     def test_adding_vectorial_gene(self):
         """
         Test adding vectorial Genes to the Blueprint
@@ -169,16 +168,16 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
                                    domain=['X', 'Y', 'Z'],
                                    replacement=False,
                                    length=3)
-        actual = builder.get_blueprint()
+        actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
 
         # Test 2
         with self.assertRaises(VectorialOverloadException):
             builder.add_vectorial_gene(name='vec_invalid',
-                                    domain=['X', 'Y', 'Z'],
-                                    replacement=False,
-                                    length=5)
-        
+                                       domain=['X', 'Y', 'Z'],
+                                       replacement=False,
+                                       length=5)
+
     def test_adding_boolean_gene(self):
         """
         Test adding boolean Genes to the Blueprint
@@ -193,5 +192,5 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         builder = GenomeBlueprintBuilder()
         builder.add_boolean_gene(name='flag1')
         builder.add_boolean_gene(name='flag2')
-        actual = builder.get_blueprint()
+        actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)

@@ -132,7 +132,7 @@ print(optpop.get_creature.best())
 ### Genome Specifications
 
 1. Numeric
-    1.1. Domain: `<class> {int, float}`
+    1.1. Domain: `type {int, float}`
     1.2. Range: `list or tuple: [min, max] or (min, max)`
 >
 
@@ -142,7 +142,7 @@ print(optpop.get_creature.best())
 
 3. Vectorial
     3.1. Domain: `list or tuple`
-    3.2. Replacement: `bool {True, False}`
+    3.2. Replacement: `bool`
     3.3. Length: `int`
 >
 
@@ -150,7 +150,9 @@ print(optpop.get_creature.best())
 >
 #### Genome Example
 ```python
-genome_blueprint = {
+from lamarck import Blueprint
+
+genome_blueprint_dict = {
     'num_var': {
         'type': 'numeric',
         'domain': int,
@@ -177,11 +179,13 @@ genome_blueprint = {
     }
 }
 
+blueprint = Blueprint(genome_blueprint_dict)
+
 # This genome blueprint will help build the population with multiple values for
-# the variables `num_var`, `cat_var`, `vec_var` and `vec_var_replace`
+# the variables `num_var`, `cat_var`, `vec_var`, `vec_var_replace` and `bool_var`
 
 # In this case, the "Process" must be a Function that has those variables as
-# parameters... oh and the output MUST ALWAYS be a `dict` with all the desired
+# parameters and the output MUST ALWAYS be a `dict` with all the desired
 # outputs.
 def some_process(num_var, cat_var, vec_var, vec_var_replace, bool_var):
     return {'output_1': ...}

@@ -16,7 +16,7 @@
     - Multiple Ranked max/min objectives
     - Multiple objective defined by pareto fronts
 
-4. Simulation controle
+4. Simulation control
     - Max generations
     - Max stall count
     - Target reached
@@ -26,9 +26,9 @@
 
 ### 1.1. Genome Bluepint Creation
 ```python
-from lamarck import GenomeBlueprintBuilder
+from lamarck import BlueprintBuilder
 
-builder = GenomeBlueprintBuilder()
+builder = BlueprintBuilder()
 
 # Adding gene specs
 builder.add_numeric_gene(name='w',
@@ -57,34 +57,35 @@ print(blueprint._dict)
 ```
 output:
 {
-   'w': {
-       'type': 'numeric',
-       'domain': float,
-       'range': [8, 15]},
-   'x': {
-       'type': 'numeric',
-       'domain': float,
-       'range': [0, 10]},
-   'y': {
-       'type': 'categorical',
-       'domain': ['A', 'B', 'C']},
-   'z': {
-       'type': 'vectorial',
-       'domain': [0, 1, 2, 3, 4],
-       'replacement': False,
-       'length': 5},
-   'flag': {
-       'type': 'boolean'}
+    'w': {
+        'type': 'numeric',
+        'specs': {'domain': float,
+                  'range': [8, 15]}},
+    'x': {
+        'type': 'numeric',
+        'specs': {'domain': float,
+                  'range': [0, 10]}},
+    'y': {
+        'type': 'categorical',
+        'specs': {'domain': ['A', 'B', 'C']}},
+    'z': {
+        'type': 'vectorial',
+        'specs': {'domain': [0, 1, 2, 3, 4],
+                  'replacement': False,
+                  'length': 5}},
+    'flag': {
+        'type': 'boolean',
+        'specs': {}}
 }
 ```
 
 ### 1.2. Adding Constraints
 ```python
 # adding constraints
-def w_gt_x(w, x): w > x
-def w_plus_x_gt_3(w, x): (w + x) > 3
-blueprint.add_constraint(name='w_gt_x', func=w_gt_x)
-blueprint.add_constraint(name='w_plus_x_gt_3', func=w_plus_x_gt_3)
+def w_gt_x(w, x): return w > x
+def w_plus_x_gt_3(w, x): return (w + x) > 3
+blueprint.add_constraint(w_gt_x)
+blueprint.add_constraint(w_plus_x_gt_3)
 ```
 
 ### 1.3. Population Creation
@@ -93,4 +94,51 @@ blueprint.add_constraint(name='w_plus_x_gt_3', func=w_plus_x_gt_3)
 popdet = blueprint.populate.deterministic(n=3)
 poprand = blueprint.populate.random(n=200)
 pop = popdet + poprand
+```
+
+
+## 2. Setting the Process
+### 2.1. Python Function
+```python
+# setting up the function (must have input parameters matching the genes)
+def my_process(w, x, y, z, flag):
+    var1 = x*w + y**z
+    var2 = w-x if flag else w-y+10
+    return {'power': var1, 'diff': var2}
+```
+
+### 2.2. Setting the Environment (Optimizer)
+```python
+from lamarck import Optimizer
+
+opt = Optimizer(population=pop,
+                process=my_process)
+```
+
+## 3. Run Simulation
+
+### 3.1. Configure simulation control vars
+```python
+opt.config.max_generations = 50
+opt.config.max_stall = 5
+opt.config.p_selection = 0.5
+opt.config.p_elitism = 0.1
+opt.config.p_tournament = 0.4
+opt.config.n_dispute = 2
+opt.config.p_mutation= 0.05
+opt.config.max_mutated_genes = 1
+```
+
+### 3.2. Define objectives and selection criteria
+```python
+# Single objective
+optpop = opt.run.single_criteria(output='power', objective='max')
+
+# Multi objective
+## Ranked
+optpop = opt.run.multi_criteria.ranked(outputs=['power', 'diff'],
+                                       objectives=['max', 'min'])
+## Pareto
+optpop = opt.run.multi_criteria.pareto(outputs=['power', 'diff'],
+                                       objectives=['max', 'min'])
 ```

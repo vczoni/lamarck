@@ -2,11 +2,11 @@ import unittest
 import numpy as np
 
 
-from lamarck import GenomeBlueprintBuilder
+from lamarck import BlueprintBuilder
 from lamarck.utils import VectorialOverloadException
 
 
-class TestGenomeBlueprintBuilder(unittest.TestCase):
+class TestBlueprintBuilder(unittest.TestCase):
     """
     Testing the basic genome blueprint constructor.
     """
@@ -24,7 +24,7 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         expected = {}
 
         # Test 1
-        builder = GenomeBlueprintBuilder()
+        builder = BlueprintBuilder()
         actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
 
@@ -47,20 +47,21 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         expected = {
             'x': {
                 'type': 'numeric',
-                'domain': int,
-                'range': [1, 10]},
+                'specs': {'domain': int,
+                          'range': [1, 10]}},
             'y': {
                 'type': 'categorical',
-                'domain': ['a', 'b', 'c']},
+                'specs': {'domain': ['a', 'b', 'c']}},
             'z': {
                 'type': 'vectorial',
-                'domain': (0, 1),
-                'replacement': True,
-                'length': 8},
+                'specs': {'domain': (0, 1),
+                          'replacement': True,
+                          'length': 8}},
             'w': {
-                'type': 'boolean'}
+                'type': 'boolean',
+                'specs': {}}
         }
-        builder = GenomeBlueprintBuilder()
+        builder = BlueprintBuilder()
         builder.add_numeric_gene(name='x', domain=int, range=[1, 10])
         builder.add_categorical_gene(name='y', domain=['a', 'b', 'c'])
         builder.add_vectorial_gene(name='z', domain=(0, 1), replacement=True,
@@ -81,18 +82,18 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
             y: `float` number varying from 0 to 6 pi
         2. Trying with a domain that is not `int` or `float`
         """
-        builder = GenomeBlueprintBuilder()
+        builder = BlueprintBuilder()
 
         # Test 1
         expected = {
             'x': {
                 'type': 'numeric',
-                'domain': int,
-                'range': [1, 10]},
+                'specs': {'domain': int,
+                          'range': [1, 10]}},
             'y': {
                 'type': 'numeric',
-                'domain': float,
-                'range': [0, 6*np.pi]}
+                'specs': {'domain': float,
+                          'range': [0, 6*np.pi]}}
         }
         builder.add_numeric_gene(name='x',
                                  domain=int,
@@ -120,12 +121,12 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         expected = {
             'names': {
                 'type': 'categorical',
-                'domain': ['Jake', 'Amy', 'Raymond', 'Rosa']},
+                'specs': {'domain': ['Jake', 'Amy', 'Raymond', 'Rosa']}},
             'ages': {
                 'type': 'categorical',
-                'domain': [35, 34, 53, 29]}
+                'specs': {'domain': [35, 34, 53, 29]}}
         }
-        builder = GenomeBlueprintBuilder()
+        builder = BlueprintBuilder()
         builder.add_categorical_gene(name='names',
                                      domain=['Jake', 'Amy', 'Raymond', 'Rosa'])
         builder.add_categorical_gene(name='ages',
@@ -150,16 +151,16 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
         expected = {
             'vec_replacement': {
                 'type': 'vectorial',
-                'domain': [0, 1],
-                'replacement': True,
-                'length': 5},
+                'specs': {'domain': [0, 1],
+                          'replacement': True,
+                          'length': 5}},
             'vec_no_replacement': {
                 'type': 'vectorial',
-                'domain': ['X', 'Y', 'Z'],
-                'replacement': False,
-                'length': 3}
+                'specs': {'domain': ['X', 'Y', 'Z'],
+                          'replacement': False,
+                          'length': 3}}
         }
-        builder = GenomeBlueprintBuilder()
+        builder = BlueprintBuilder()
         builder.add_vectorial_gene(name='vec_replacement',
                                    domain=[0, 1],
                                    replacement=True,
@@ -186,10 +187,10 @@ class TestGenomeBlueprintBuilder(unittest.TestCase):
             flag2
         """
         expected = {
-            'flag1': {'type': 'boolean'},
-            'flag2': {'type': 'boolean'},
+            'flag1': {'type': 'boolean', 'specs': {}},
+            'flag2': {'type': 'boolean', 'specs': {}},
         }
-        builder = GenomeBlueprintBuilder()
+        builder = BlueprintBuilder()
         builder.add_boolean_gene(name='flag1')
         builder.add_boolean_gene(name='flag2')
         actual = builder.get_blueprint()._dict

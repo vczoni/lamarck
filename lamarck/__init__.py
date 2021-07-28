@@ -1,4 +1,4 @@
-from lamarck.blueprint import GenomeBlueprintBuilder, Blueprint
+from lamarck.blueprint import BlueprintBuilder, Blueprint
 
 
-__all__ = ['GenomeBlueprintBuilder', 'Blueprint']
+__all__ = ['BlueprintBuilder', 'Blueprint']

@@ -139,11 +139,7 @@ class testOptimizerDatasets(unittest.TestCase):
 
     def test_simulation_outputs(self):
         """
-        Run the population and check if the output data is sane
-        Tests
-        -----
-        1. returned output data
-        2. opt.dataset.results data
+        Run the population and check if the output data is sane.
         """
         pop = self.blueprint.populate.deterministic(n=3)
         opt = Optimizer(population=pop, process=self.process)
@@ -177,12 +173,7 @@ class testOptimizerDatasets(unittest.TestCase):
             expected_data['grooveness'].append(out_dict['grooveness'])
         out_data = pd.DataFrame(expected_data).set_index('id')
 
-        # Test 1
-        expected = pd.concat((opt.datasets.population.head(), out_data), axis=1)
-        actual = opt.run().head()
-        assert_frame_equal(expected, actual)
-
-        # Test 2
         expected = out_data
+        opt.run(quiet=True)
         actual = opt.datasets.results.head()
         assert_frame_equal(expected, actual)

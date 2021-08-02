@@ -125,19 +125,63 @@ opt = Optimizer(population=pop,
 ```
 
 ### 2.3. Run the Environment (just for testing one population)
+Will run the function for each gene in the current population and return its Output data as a Pandas DataFrame.
 ```python
-output = opt.run()
-# will run the function for each gene in the current population and return its Output
-# data as a Pandas DataFrame.
-output.head()
+opt.run(return_data=True)
+opt.datasets.results.head()
 ```
-| id                                                               |   w |   x | y   | z               | flag   |   power |   diff |
-|:-----------------------------------------------------------------|----:|----:|:----|:----------------|:-------|--------:|-------:|
-| 5b3817cc550623ddfa7ad6ab0712d217540a48ddb85d19eaa07773dbb11ab296 |   8 |   0 | A   | (0, 1, 2, 3, 4) | False  |      84 |     -6 |
-| 3fd076410604c57dbd90282b4f469004560d317f08e0c682666ae275579a406c |   8 |   0 | A   | (0, 1, 2, 3, 4) | True   |      84 |      8 |
-| 0cc50247f93271d6946ed8baba45d77f09873e4d6fbe1a7a3aa21f60405ee740 |   8 |   0 | A   | (2, 1, 4, 3, 0) | False  |      48 |     -6 |
-| 8b103f0471c9a2ff8cf416be4b7dc88fb033d41b457c37bab565c59a8f804fa9 |   8 |   0 | A   | (2, 1, 4, 3, 0) | True   |      48 |      8 |
-| aeb8ffb0c1457d4392ff6a3ffe5ebfdc113cc5ee14e565a0b4b9a0a304ceb618 |   8 |   0 | A   | (4, 3, 2, 1, 0) | False  |       5 |     -6 |
+| id                   |   power |   diff |
+|:---------------------|--------:|-------:|
+| 5b3817cc550623ddfa...|      37 |     15 |
+| 3fd076410604c57dbd...|      37 |      8 |
+| bd2b6f57b8ad1b57e9...|       9 |     15 |
+| c4db4ccc569b41bd7a...|       9 |      8 |
+| 2e9ca363a8f09621ac...|      12 |     15 |
+
+### 2.4. Run some Fitness Criteria
+Will apply the selected criteria to the results data and return a Pandas DataFrame.
+#### 2.4.1. Single Objective
+```python
+opt.apply_fitness.single_criteria(output='power', objective='max')
+opt.datasets.fitness.head()
+```
+| id                   |   Criteria |   Rank |
+|:---------------------|-----------:|-------:|
+| 5b3817cc550623ddfa...|         37 |   1850 |
+| 3fd076410604c57dbd...|         37 |   1850 |
+| bd2b6f57b8ad1b57e9...|          9 |   2079 |
+| c4db4ccc569b41bd7a...|          9 |   2079 |
+| 2e9ca363a8f09621ac...|         12 |   2042 |
+
+#### 2.4.2. Multi Objective
+##### 2.4.2.1. Ranked Objectives
+```python
+opt.apply_fitness.multi_criteria.ranked(outputs=['power', 'diff'],
+                                        objectives=['max', 'min'])
+opt.datasets.fitness.head()
+```
+| id                   |   Criteria1 |   Criteria2 |   Rank |
+|:---------------------|------------:|------------:|-------:|
+| 5b3817cc550623ddfa...|          37 |          15 |   1861 |
+| 3fd076410604c57dbd...|          37 |           8 |   1855 |
+| bd2b6f57b8ad1b57e9...|           9 |          15 |   2084 |
+| c4db4ccc569b41bd7a...|           9 |           8 |   2079 |
+| 2e9ca363a8f09621ac...|          12 |          15 |   2052 |
+
+##### 2.4.2.2. Pareto Fronts
+```python
+opt.apply_fitness.multi_criteria.pareto(outputs=['power', 'diff'],
+                                        objectives=['max', 'min'])
+opt.datasets.fitness.head()
+```
+| id                   |   Front |     Crowd |   Rank |
+|:---------------------|--------:|----------:|-------:|
+| 5b3817cc550623ddfa...|      66 | 0.265356  |   1446 |
+| 3fd076410604c57dbd...|      66 | 0         |   1716 |
+| bd2b6f57b8ad1b57e9...|      66 | 1.81679   |   1083 |
+| c4db4ccc569b41bd7a...|      66 | 0         |   1716 |
+| 2e9ca363a8f09621ac...|      66 | 0.0679169 |   1647 |
+
 
 ## 3. Run Simulation
 

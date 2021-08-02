@@ -1,5 +1,9 @@
 
+# Objective map
+objective_ascending_map = {'min': True, 'max': False}
 
+
+# Exceptions
 class VectorialOverloadException(Exception):
     """
     Exception is raised when an impossible vector is declared in the gene specs.

@@ -40,35 +40,37 @@ The Process must be a Python `function` with one or more input parameters and mu
 
 ```python
 import numpy as np
-from lamarck import Optimizer
+import pandas as pd
+from lamarck import BlueprintBuilder, Optimizer
 
 # Defining the Process
 def my_process(x, y):
     val = np.sin(x)*x + np.sin(y)*y
     return {'val': val}
 
+# Building the Blueprint
+builder = BlueprintBuilder()
+# Adding gene specs
+builder.add_numeric_gene(name='x',
+                         domain=float,
+                         range=[0, 12*np.pi])
+
+builder.add_numeric_gene(name='y',
+                         domain=float,
+                         range=[0, 12*np.pi])
+
+blueprint = builder.get_blueprint()
+
+# Building the Population
+popdet = blueprint.populate.deterministic(n=20)
+poprnd = blueprint.populate.random(n=600)
+pop = pd.concat((popdet, poprnd)).reset_axis(drop=True)
+
 # Setting up the Optimizer
-opt = Optimizer()
-
-# Genome Blueprint
-# (note that 'x' and 'y' are declared, which are the exact same names as the
-# parameters of the function 'process' - *this is required*)
-opt.genome_creator.add_gene_specs.numeric(name='x',
-                                          domain=float,
-                                          range=[0, 12*np.pi])
-
-opt.genome_creator.add_gene_specs.numeric(name='y',
-                                          domain=float,
-                                          range=[0, 12*np.pi])
-
-# Creating the Population
-opt.create_population(n_det=20, n_rand=600)
-
-# Setting up the Environment
-opt.set_process(my_process)
+opt = Optimizer(pop, process)
 
 # Simulate (this will return an optimized population)
-optpop = opt.run.single_objective(output='val', objective='max')
+optpop = opt.simulate.single_objective(output='val', objective='max')
 
 # Check the best solution
 print(optpop.get_creature.best())
@@ -81,7 +83,7 @@ print(optpop.get_creature.best())
 (This one uses the module `docs/examples/toymodules/salesman.py`)
 ```python
 from toymodules.salesman import TravelSalesman
-from lamarck import Optimizer
+from lamarck import BlueprintBuilder, Optimizer
 
 # Defining the Process
 # In order to persist the TravelSalesman object for the Process, we need to
@@ -91,31 +93,31 @@ def process_deco(travel_salesman):
         return {'distance': travel_salesman.get_route_distance(route)}
     return wrapper
 
-# Setting up the Optimizer
-opt = Optimizer()
-
 # Genome Blueprint
 # (this will only have one variable that is a "Vector" of the particular order
 # of cities that the salesman should vist)
 number_of_cities = 20
 cities = tuple(range(number_of_cities))
-opt.genome_creator.add_gene_specs.vectorial(name='route',
-                                            domain=cities,
-                                            replace=False,
-                                            length=number_of_cities)
+builder.genome_creator.add_vectorial_gene(name='route',
+                                          domain=cities,
+                                          replace=False,
+                                          length=number_of_cities)
 
 # Creating the Population (5000 randomly generated 'route's)
-opt.create_population(n_rand=5000)
+pop = builder.populate.random(n=5000)
 
 # Setting up the Environment
 trav_salesman = TravelSalesman(number_of_cities, seed=123)
 process = process_deco(trav_salesman)
-opt.set_process(process)
+
+# Setting up the Optimizer
+opt = Optimizer(population=pop, process=process)
+
 # Activate MultiThreading (may speed things up)
-opt.env.config.set_multi(True)
+opt.config.multithread = True
 
 # Simulate (this will return an optimized population)
-optpop = opt.run.single_objective(output='distance', objective='min')
+optpop = opt.simulate.single_objective(output='distance', objective='min')
 
 # Check the best solution
 print(optpop.get_creature.best())

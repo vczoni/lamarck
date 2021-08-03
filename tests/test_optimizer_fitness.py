@@ -232,7 +232,7 @@ class testOptimizerFitness(unittest.TestCase):
 
         results_data = {
             'out1': [10, 100, 200, 35, 350, 700, 60, 600, 1200],
-            'out2': [9, 0, -10, 34, 25, 15, 59, 50, 40]
+            'out2':   [9, 0,  -10, 34, 25,  15,  59, 50,  40]
         }
         fronts_data = [3, 2, 1, 3, 2, 1, 3, 2, 1]
         crowds_data = [np.inf, np.inf, np.inf, 100., 550., 1050., np.inf, np.inf, np.inf]

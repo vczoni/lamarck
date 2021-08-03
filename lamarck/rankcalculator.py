@@ -20,12 +20,14 @@ class RankCalculator:
     results: pd.DataFrame
     out: list | str
 
-    def __init__(self, results_df: pd.DataFrame = pd.DataFrame()):
-        self._update(results_df, '')
+    def __init__(self, results_df: pd.DataFrame = pd.DataFrame(), out: list | str = ''):
+        self.update(results_df=results_df, out=out)
 
-    def _update(self, results_df: pd.DataFrame, out: list | str) -> None:
-        self.results = results_df.copy()
-        self.out = out
+    def update(self, results_df: pd.DataFrame = None, out: list | str = None) -> None:
+        if results_df is not None:
+            self.results = results_df.copy()
+        if out is not None:
+            self.out = out
 
     @rank_formatter('Rank')
     def single(self, objective: str) -> pd.Series:
@@ -53,38 +55,25 @@ class RankCalculator:
         return rank
 
     @rank_formatter('Rank')
-    def pareto(self, fronts: pd.Series, crowds: pd.Series) -> pd.Series:
+    def pareto(self, objectives: list[str]) -> pd.Series:
         """
         Get the Pareto Ranks based on the `pareto fronts` and the `crowds` Series.
         """
+        fronts = self.pareto_fronts(objectives)
+        crowds = self.pareto_crowds(fronts)
         r1 = fronts.rank(method='dense', ascending=True)
         r2 = crowds.rank(method='dense', ascending=False)
         order1 = int(np.log10(r2.max())) + 1
         factor1 = 10**order1
         return (r1 * factor1 + r2).rank(method='min')
 
-    def pareto_fronts(self, objectives: list[str], p: float) -> pd.Series:
+    def pareto_fronts(self, objectives: list[str]) -> pd.Series:
         """
         Get the Pareto Fronts.
         """
-        size = len(self.results)
-        find_dominators = find_dominators_deco(self.results[self.out], objectives)
-        dominators = self.results.apply(find_dominators, axis=1)
-        fronts = pd.Series(np.zeros(size), index=self.results.index, dtype=int)
-        lenvals = dominators.map(len)
-        front = 0
-        threshold = size * (1-p)
-        while sum(fronts == 0) >= threshold:
-            front += 1
-            f = lenvals == 0
-            fronts[f] = front
-            lenvals[f] = None
-            dominator_ids = f[f].index
-            get_n_dominators = n_dominators_deco(dominator_ids)
-            n_dominators = dominators.map(get_n_dominators)
-            lenvals[~f] -= n_dominators[~f]
-        fronts[fronts == 0] = front + 1
-        return fronts.rename('Front')
+        norm_df = normalize_df_by_objective(self.results, self.out, objectives)
+        dominators = get_dominators(norm_df)
+        return get_fronts(dominators).rename('Front')
 
     def pareto_crowds(self, fronts: pd.Series) -> pd.Series:
         """
@@ -98,25 +87,58 @@ class RankCalculator:
         return crowds.rename('Crowd')
 
 
-def find_dominators_deco(df, objectives):
-    def mapper(x):
-        f = np.ones(len(df), dtype=bool)
-        feq = np.ones(len(df), dtype=bool)
-        for col, objective in zip(df.columns, objectives):
-            if objective == 'min':
-                check = df[col] <= x[col]
-            elif objective == 'max':
-                check = df[col] >= x[col]
-            feq = feq & (df[col] == x[col])
-            f = f & check
-        return df.index[f & ~feq]
-    return mapper
+def normalize_series_by_objective(series, objective):
+    maxval = series.max()
+    minval = series.min()
+    data_range = maxval - minval
+    abs_series = series - minval
+    if objective == 'max':
+        norm_series = abs_series/data_range
+    elif objective == 'min':
+        norm_series = 1 - abs_series/data_range
+    return norm_series
 
 
-def n_dominators_deco(ids):
-    def mapper(x):
-        return len(np.intersect1d(ids, x))
-    return mapper
+def normalize_df_by_objective(df, outputs, objectives):
+    data_dict = {
+        output: normalize_series_by_objective(df[output], objective)
+        for output, objective in zip(outputs, objectives)
+    }
+    return pd.DataFrame(data_dict, index=df.index)
+
+
+def get_dominators(normalized_df):
+    """
+    Get the `dominators` based on the `nomalized_by_objective` df.
+    """
+    def dominator_mapper(row):
+        diff = normalized_df - row
+        f_equals = (diff == 0).all(axis=1)
+        f_dominant = (diff >= 0).all(axis=1)
+        return normalized_df.index[~f_equals & f_dominant]
+    return normalized_df.apply(dominator_mapper, axis=1)
+
+
+def get_fronts(dominators):
+    """
+    Get the array of `front` values base on the `dominators` array.
+    """
+    def isin_deco(arr):
+        def isin(row):
+            return row.isin(arr).all()
+        return isin
+
+    dom_arr = np.array([])
+    front = 1
+    fronts = pd.Series(np.zeros(len(dominators)), index=dominators.index)
+    for _ in range(9):
+        isin = isin_deco(dom_arr)
+        f = dominators.apply(isin) & (fronts == 0)
+        fronts[f] = front
+        dom_arr = np.concatenate((dom_arr, f[f].index.to_numpy()))
+        front += 1
+    fronts[fronts == 0] = front
+    return fronts.astype(int)
 
 
 def get_crowd(df):

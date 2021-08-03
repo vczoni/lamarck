@@ -183,7 +183,7 @@ class Optimizer:
                 -------
                 self.datasets.results DataFrame
                 """
-                self._opt.rank_calculator._update(self._opt.datasets.results, outputs)
+                self._opt.rank_calculator.update(self._opt.datasets.results, outputs)
                 rank = self._opt.rank_calculator.ranked(objectives)
                 concat_data = (
                     [self._opt.datasets.results[col].rename(f'Criteria{i+1}')
@@ -192,7 +192,7 @@ class Optimizer:
                 )
                 self._opt.datasets.fitness = pd.concat(concat_data, axis=1)
 
-            def pareto(self, outputs: list[str], objectives: list[str], p: float = 0.5) -> None:
+            def pareto(self, outputs: list[str], objectives: list[str]) -> None:
                 """
                 Select multiple :outputs: to optimize according to a set of defined :objectives:
                 that will define the Pareto Fronts. The Ranking method will consider both the
@@ -202,8 +202,6 @@ class Optimizer:
                 ----------
                 :outputs:       Output Variables.
                 :objectives:    Objectives.
-                :p:             Proportion of the Population that will be classified.
-                                (default: 0.5)
 
                 Available Objectives
                 --------------------
@@ -221,10 +219,10 @@ class Optimizer:
                 -------
                 self.datasets.results DataFrame
                 """
-                self._opt.rank_calculator._update(self._opt.datasets.results, outputs)
-                fronts = self._opt.rank_calculator.pareto_fronts(objectives, p)
+                self._opt.rank_calculator.update(self._opt.datasets.results, outputs)
+                fronts = self._opt.rank_calculator.pareto_fronts(objectives)
                 crowd = self._opt.rank_calculator.pareto_crowds(fronts)
-                rank = self._opt.rank_calculator.pareto(fronts, crowd)
+                rank = self._opt.rank_calculator.pareto(objectives)
                 concat_data = (fronts, crowd, rank)
                 self._opt.datasets.fitness = pd.concat(concat_data, axis=1)
 
@@ -253,7 +251,7 @@ class Optimizer:
             -------
             self.datasets.results DataFrame
             """
-            self._opt.rank_calculator._update(self._opt.datasets.results, output)
+            self._opt.rank_calculator.update(self._opt.datasets.results, output)
             rank = self._opt.rank_calculator.single(objective)
             concat_data = (
                 self._opt.datasets.results[output].rename('Criteria'),

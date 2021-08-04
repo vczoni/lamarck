@@ -156,7 +156,7 @@ opt.datasets.fitness.head()
 #### 2.4.2. Multi Objective
 ##### 2.4.2.1. Ranked Objectives
 ```python
-opt.apply_fitness.multi_criteria.ranked(outputs=['power', 'diff'],
+opt.apply_fitness.multi_criteria_ranked(outputs=['power', 'diff'],
                                         objectives=['max', 'min'])
 opt.datasets.fitness.head()
 ```
@@ -170,7 +170,7 @@ opt.datasets.fitness.head()
 
 ##### 2.4.2.2. Pareto Fronts
 ```python
-opt.apply_fitness.multi_criteria.pareto(outputs=['power', 'diff'],
+opt.apply_fitness.multi_criteria_pareto(outputs=['power', 'diff'],
                                         objectives=['max', 'min'])
 opt.datasets.fitness.head()
 ```
@@ -204,9 +204,9 @@ optpop = opt.simulate.single_criteria(output='power', objective='max')
 
 # Multi objective
 ## Ranked
-optpop = opt.simulate.multi_criteria.ranked(outputs=['power', 'diff'],
+optpop = opt.simulate.multi_criteria_ranked(outputs=['power', 'diff'],
                                             objectives=['max', 'min'])
 ## Pareto
-optpop = opt.simulate.multi_criteria.pareto(outputs=['power', 'diff'],
+optpop = opt.simulate.multi_criteria_pareto(outputs=['power', 'diff'],
                                             objectives=['max', 'min'])
 ```

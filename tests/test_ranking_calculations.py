@@ -14,6 +14,8 @@ class TestRankingMethods(unittest.TestCase):
     1. Single Objective Ranking
     2. Multi Objective Ranking - Ranked
     3. Multi Objective Ranking - Pareto
+        3.1. Fronts
+        3.2. Ranking
     """
 
     def test_single_objective_ranking(self):

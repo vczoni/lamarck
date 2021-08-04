@@ -153,7 +153,7 @@ class testOptimizerFitness(unittest.TestCase):
         # Tests 1 & 2 - Setup
         outputs = ['gear_sickness', 'price_unbelievebleness']
         objectives = ['max', 'min']
-        opt.apply_fitness.multi_criteria.ranked(outputs=outputs, objectives=objectives)
+        opt.apply_fitness.multi_criteria_ranked(outputs=outputs, objectives=objectives)
         rank = multirank(opt.datasets.results, outputs, objectives).rename('Rank')
 
         # Test 1
@@ -180,7 +180,7 @@ class testOptimizerFitness(unittest.TestCase):
         # Tests 3 & 4 - Setup
         outputs = ['gear_sickness', 'price_unbelievebleness', 'grooveness']
         objectives = ['max', 'min', 'max']
-        opt.apply_fitness.multi_criteria.ranked(outputs=outputs, objectives=objectives)
+        opt.apply_fitness.multi_criteria_ranked(outputs=outputs, objectives=objectives)
         rank = multirank(opt.datasets.results, outputs, objectives).rename('Rank')
 
         # Test 3
@@ -228,7 +228,7 @@ class testOptimizerFitness(unittest.TestCase):
         pop = blueprint.populate.deterministic(n=3)
         opt = Optimizer(pop, process)
         opt.run()
-        opt.apply_fitness.multi_criteria.pareto(['out1', 'out2'], ['max', 'min'])
+        opt.apply_fitness.multi_criteria_pareto(['out1', 'out2'], ['max', 'min'])
 
         results_data = {
             'out1': [10, 100, 200, 35, 350, 700, 60, 600, 1200],

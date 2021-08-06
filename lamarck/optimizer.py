@@ -1,12 +1,12 @@
 from __future__ import annotations
 from typing import Callable
-import hashlib
 import pandas as pd
 from tqdm import tqdm
 from tqdm.contrib.concurrent import thread_map
 from concurrent.futures import ThreadPoolExecutor
 
 from lamarck.rankcalculator import RankCalculator
+from lamarck.utils import hash_cols
 
 
 class Optimizer:
@@ -80,14 +80,6 @@ class Optimizer:
             datasets = (self.population, self.results, self.fitness)
             return pd.concat(datasets, axis=1)
 
-        @staticmethod
-        def _hash(obj: tuple) -> str:
-            """
-            Custom hashing function.
-            """
-            s = str(obj).encode()
-            return hashlib.sha256(s).hexdigest()
-
         def _build_initial_data(self) -> None:
             """
             Create the initial Simulation Datasets.
@@ -102,17 +94,11 @@ class Optimizer:
             :history:       create empty dataset with the hashed index.
             """
             df = self._raw_population.copy()
-            # Hashed Index
-            cols = (df[col] for col in df.columns)
-            hash_index = pd.Series(tuple(zip(*cols))).apply(self._hash)
-            hash_index.name = 'id'
-            # Population
-            self.population = df.set_index(hash_index)
-            # Results
-            self.results = pd.DataFrame(columns=self._outputs, index=hash_index)
-            # Fitness & History
-            self.fitness = pd.DataFrame(index=hash_index)
-            self.history = pd.DataFrame(index=hash_index)
+            hashed_index = hash_cols(df)
+            self.population = df.set_index(hashed_index)
+            self.results = pd.DataFrame(columns=self._outputs, index=hashed_index)
+            self.fitness = pd.DataFrame(index=hashed_index)
+            self.history = pd.DataFrame(index=hashed_index)
 
     class Criteria:
         """
@@ -315,6 +301,7 @@ class Optimizer:
             for index, row in self.datasets.population.iterrows():
                 yield pd.DataFrame(self.process(**row), index=pd.Series([index], name='id'))
                 bar.update()
+            bar.close()
 
         if quiet:
             sim_generator = run_generator_quiet()

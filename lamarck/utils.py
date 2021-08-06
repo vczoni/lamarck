@@ -1,6 +1,26 @@
+import hashlib
+import pandas as pd
+
 
 # Objective map
 objective_ascending_map = {'min': True, 'max': False}
+
+
+# functions
+def hash_tuple(obj: tuple) -> str:
+    """
+    Custom hashing function.
+    """
+    s = str(obj).encode()
+    return hashlib.sha256(s).hexdigest()
+
+
+def hash_cols(df: pd.DataFrame) -> pd.Series:
+    """
+    Transform row data in Tuples and hash them.
+    """
+    cols = (df[col] for col in df.columns)
+    return pd.Series(tuple(zip(*cols)), name='id').apply(hash_tuple)
 
 
 # Exceptions

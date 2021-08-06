@@ -10,6 +10,7 @@ class Gene(ABC):
     """
     Abstract class for handling the different types of genes.
     """
+    name: str
     domain: object
 
     @abstractclassmethod
@@ -25,10 +26,12 @@ class NumericGene(Gene):
     """
     Numeric Gene class.
     """
+    name: str
     domain: type
     range: list | tuple
 
-    def __init__(self, specs: dict):
+    def __init__(self, name: str, specs: dict):
+        self.name = name
         self.domain = specs['domain']
         self.range = specs['range']
 
@@ -54,9 +57,11 @@ class CategoricalGene(Gene):
     """
     Categorical Gene class.
     """
+    name: str
     domain: list | tuple
 
-    def __init__(self, specs: dict):
+    def __init__(self, name: str, specs: dict):
+        self.name = name
         self.domain = specs['domain']
 
     def get_linspace(self, n: int) -> np.ndarray:
@@ -74,11 +79,13 @@ class VectorialGene(Gene):
     """
     Vectorial Gene class.
     """
+    name: str
     domain: list | tuple
     replacement: bool
     length: int
 
-    def __init__(self, specs: dict):
+    def __init__(self, name: str, specs: dict):
+        self.name = name
         self.domain = specs['domain']
         self.replacement = specs['replacement']
         self.length = specs['length']
@@ -111,9 +118,11 @@ class BooleanGene(Gene):
     """
     Boolean Gene class.
     """
+    name: str
     domain: type
 
-    def __init__(self, specs: None):
+    def __init__(self, name: str, specs: None):
+        self.name = name
         self.domain = bool
 
     def get_linspace(self, n: None = None) -> np.ndarray:
@@ -144,7 +153,7 @@ class GeneCollection:
             genetype = geneconfig['type']
             geneclass = genetype_dict[genetype]
             specs = geneconfig['specs']
-            gene = geneclass(specs)
+            gene = geneclass(genename, specs)
             self._dict.update({genename: gene})
         self.__dict__.update(self._dict)
 
@@ -152,3 +161,10 @@ class GeneCollection:
         if isinstance(key, int):
             key = list(self._dict)[key]
         return self._dict[key]
+
+    def __len__(self):
+        return len(self._dict)
+
+    @property
+    def names(self):
+        return list(self._dict)

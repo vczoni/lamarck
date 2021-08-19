@@ -42,10 +42,13 @@ builder.add_numeric_gene(name='x',
 builder.add_categorical_gene(name='y',
                              domain=['A', 'B', 'C'])
 
-builder.add_vectorial_gene(name='z',
-                           domain=(0, 1, 2, 3, 4),
-                           replacement=False,
-                           length=5)
+builder.add_array_gene(name='z',
+                       domain=(0, 1, 2, 3, 4),
+                       length=5)
+
+builder.add_set_gene(name='w',
+                     domain=(0, 1, 2, 3, 4),
+                     length=5)
 
 builder.add_boolean_gene(name='flag')
 
@@ -68,9 +71,12 @@ print(blueprint._dict)
 >        'type': 'categorical',
 >        'specs': {'domain': ['A', 'B', 'C']}},
 >    'z': {
->        'type': 'vectorial',
+>        'type': 'array',
 >        'specs': {'domain': [0, 1, 2, 3, 4],
->                  'replacement': False,
+>                  'length': 5}},
+>    'w': {
+>        'type': 'set',
+>        'specs': {'domain': [0, 1, 2, 3, 4],
 >                  'length': 5}},
 >    'flag': {
 >        'type': 'boolean',

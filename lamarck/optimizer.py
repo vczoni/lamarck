@@ -1,9 +1,11 @@
 from __future__ import annotations
 from typing import Callable
+from dataclasses import dataclass
+from concurrent.futures import ThreadPoolExecutor
+
 import pandas as pd
 from tqdm import tqdm
 from tqdm.contrib.concurrent import thread_map
-from concurrent.futures import ThreadPoolExecutor
 
 from lamarck.rankcalculator import RankCalculator
 from lamarck.utils import hash_cols
@@ -13,7 +15,7 @@ class Optimizer:
     """
     The Optimizer is responsible for storing the all the necessary Simulation
     objects, such as:
-        - The relevant simulation datasets, such as:
+        - The relevant simulation datasets
         - The user defined process
     Also it has all the simulation control vars and multiple simulation methods.
 
@@ -228,6 +230,7 @@ class Optimizer:
         Multi Objective - Pareto    Select multiple outputs and find their Pareto Fronts
                                     by attributing a set of maximize/minimize objectives.
         """
+        @dataclass
         class SimulationConfig:
             """
             Simulation configurations.
@@ -246,6 +249,7 @@ class Optimizer:
                 - active
                 - max_workers
             """
+            @dataclass
             class MultiThreadConfig:
                 active: bool = True
                 max_workers: int | None = None
@@ -344,3 +348,13 @@ class Optimizer:
                 desc='Simulating Population',
                 max_workers=max_workers)
         self.datasets.results = pd.concat(creature_result_list)
+
+
+def select_fittest(ranked_data: pd.DataFrame,
+                   p: float = 0.5,
+                   rank_col: str = 'Rank') -> pd.DataFrame:
+    """
+    Select the fraction :p: of creatures from a ranked population data based on a Rank column.
+    """
+    n_selection = int(round(len(ranked_data) * p))
+    return ranked_data.sort_values(rank_col)[0:n_selection]

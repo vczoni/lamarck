@@ -23,12 +23,15 @@ class BlueprintBuilder:
         2. Categorical
             2.1. Domain: `list` or `tuple`
 
-        3. Vectorial
+        3. Array
             3.1. Domain: `list` or `tuple`
-            3.2. Replacement: bool
-            3.3. Length: int
+            3.2. Length: int
 
-        4. Boolean
+        4. Set
+            4.1. Domain: `list` or `tuple`
+            4.2. Length: int
+
+        5. Boolean
     """
     _blueprint: dict
 
@@ -105,44 +108,74 @@ class BlueprintBuilder:
         }
         self._blueprint.update({name: genespecs})
 
-    def add_vectorial_gene(self, name: str, domain: list | tuple,
-                           replacement: bool, length: int) -> None:
+    def add_array_gene(self, name: str, domain: list | tuple, length: int) -> None:
         """
-        Add a Vectorial gene specs for the blueprint.
+        Add an Array gene specs for the blueprint.
+
+        An `Array` Gene is a `Vectorial` where its permitted to repeat a value in the same
+        vector.
 
         Parameters
         ----------
         :name:          Gene name.
         :domain:        List of all possible categories contained in the vector.
-        :replacement:   Flag to define if its permitted to repeat a value in the
-                        same vector (Warning: if this is set to False, then the
-                        vector CANNOT have duplicate values, which means its
-                        :length: parameter CAN'T be greater than the length of
-                        its :domain:).
         :length:        Length of the vectors.
 
         Example
         -------
         >>> builder = BlueprintBuilder()
-        >>> builder.add_vectorial_gene(name='sequence',
+        >>> builder.add_array_gene(name='sequence',
         ...                            domain=['A', 'T', 'C', 'G'],
-        ...                            replacement=True,
         ...                            length=1000)
         >>> blueprint = builder.get_blueprint()
         >>> blueprint.show()
         - sequence
-            |- type: vectorial
+            |- type: array
             |- specs
                 |- domain: ['A', 'T', 'C', 'G']
-                |- replacement: True
                 |- length: 1000
         """
-        if not replacement:
-            check_vector_validity(domain, length)
         genespecs = {
-            'type': 'vectorial',
+            'type': 'array',
             'specs': {'domain': domain,
-                      'replacement': replacement,
+                      'length': length}
+        }
+        self._blueprint.update({name: genespecs})
+
+    def add_set_gene(self, name: str, domain: list | tuple, length: int) -> None:
+        """
+        Add an Set gene specs for the blueprint.
+
+        A `Set` Gene is a `Vectorial` where its NOT permitted to repeat a value in the same
+        vector.
+
+        Warning: the vector CANNOT have duplicate values, which means its :length: parameter
+        CAN'T be greater than the length of its :domain:.
+
+        Parameters
+        ----------
+        :name:          Gene name.
+        :domain:        List of all possible categories contained in the vector.
+        :length:        Length of the vectors.
+
+        Example
+        -------
+        >>> builder = BlueprintBuilder()
+        >>> builder.add_set_gene(name='cities',
+        ...                      domain=['C1', 'C2', 'C3', 'C4', 'C5', 'C6'],
+        ...                      length=5)
+        >>> blueprint = builder.get_blueprint()
+        >>> blueprint.show()
+        - cities
+            |- type: set
+            |- specs
+                |- domain: ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']
+                |- length: 5
+        """
+        check_vector_validity(domain, length)
+        genespecs = {
+            'type': 'set',
+            'specs': {'domain': domain,
                       'length': length}
         }
         self._blueprint.update({name: genespecs})
@@ -205,6 +238,10 @@ class Blueprint:
             'specs': {'domain': [0, 1, 2, 3, 4],
                       'replacement': False,
                       'length': 5}},
+        'w': {
+            'type': 'set',
+            'specs': {'domain': [0, 1, 2, 3, 4],
+                      'length': 5}},
         'flag': {
             'type': 'boolean'
             'specs': {}}
@@ -238,12 +275,12 @@ class Blueprint:
                             - values = (10, 30, 50, 70, 90)
                         2. categorical: domain=('A', 'B', 'C', 'D', 'E'), n=3
                             - values = ('A', 'C', 'E')
-                        3. vectorial: domain=(1, 2, 3, 4), length=3, replacement=True, n=4
+                        3. array: domain=(1, 2, 3, 4), length=3, n=4
                             - values = ((1, 1, 1),
                                         (2, 1, 1),
                                         (3, 1, 1),
                                         (4, 1, 1))
-                        5. vectorial: domain=(1, 2, 3, 4), length=3, replacement=False, n=4
+                        4. set: domain=(1, 2, 3, 4), length=3, n=4
                             - values = ((1, 2, 3),
                                         (2, 1, 3),
                                         (3, 1, 2),
@@ -264,9 +301,12 @@ class Blueprint:
             ...         'type': 'categorical',
             ...         'specs': {'domain': ['A', 'B', 'C']}},
             ...     'z': {
-            ...         'type': 'vectorial',
+            ...         'type': 'array',
             ...         'specs': {'domain': [0, 1, 2, 3, 4],
-            ...                   'replacement': False,
+            ...                   'length': 5}},
+            ...     'w': {
+            ...         'type': 'set',
+            ...         'specs': {'domain': [0, 1, 2, 3, 4],
             ...                   'length': 5}},
             ...     'flag': {
             ...         'type': 'boolean',
@@ -278,14 +318,14 @@ class Blueprint:
 
             >>> data = blueprint.populate.deterministic(n=3)
             >>> len(data)
-            54
+            162
 
             - Example 2: n as a Dictionary
             # disclaimer: Boolean genes doesn't need any value
-            >>> n_dict = {'x': 5, 'y': 3, 'z': 6, 'flag': None}
+            >>> n_dict = {'x': 5, 'y': 3, 'z': 6, 'w': 2, 'flag': None}
             >>> data = blueprint.populate.deterministic(n=n_dict)
             >>> len(data)
-            180
+            360
             """
             if isinstance(n, int):
                 n_dict = {gene: n for gene in self._bp._dict}
@@ -322,9 +362,12 @@ class Blueprint:
             ...         'type': 'categorical',
             ...         'specs': {'domain': ['A', 'B', 'C']}},
             ...     'z': {
-            ...         'type': 'vectorial',
+            ...         'type': 'array',
             ...         'specs': {'domain': [0, 1, 2, 3, 4],
-            ...                   'replacement': False,
+            ...                   'length': 5}},
+            ...     'w': {
+            ...         'type': 'set',
+            ...         'specs': {'domain': [0, 1, 2, 3, 4],
             ...                   'length': 5}},
             ...     'flag': {
             ...         'type': 'boolean',

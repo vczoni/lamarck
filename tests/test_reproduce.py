@@ -1,9 +1,14 @@
 import unittest
+
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
 
 from lamarck import Blueprint, Optimizer
-from lamarck.reproduce import Reproductor
+from lamarck.reproduce import (Reproductor,
+                               child_generator,
+                               select_parents_by_tournament)
+from lamarck.utils import ParentOverloadException
 
 
 class TestReproduction(unittest.TestCase):
@@ -12,13 +17,11 @@ class TestReproduction(unittest.TestCase):
 
     Reproduction Methods
     --------------------
-    - Tournament
-    - Elitism
-    - Mutations
+    - Sexual
+        - Cross-Over methods
+        - Tournament
+    - Asexual (mutation)
     """
-    blueprint: Blueprint
-    reproductor: Reproductor
-    opt = Optimizer
 
     def setUp(self):
         blueprint_dict = {
@@ -38,14 +41,12 @@ class TestReproduction(unittest.TestCase):
                 'type': 'categorical',
                 'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR']}},
             'sick_pattern': {
-                'type': 'vectorial',
+                'type': 'array',
                 'specs': {'domain': ['L', 'R'],
-                          'replacement': True,
                           'length': 3}},
             'groove': {
-                'type': 'vectorial',
+                'type': 'set',
                 'specs': {'domain': ['hh', 'bd', 'sn'],
-                          'replacement': False,
                           'length': 3}},
             'is_loud': {
                 'type': 'boolean',
@@ -73,52 +74,81 @@ class TestReproduction(unittest.TestCase):
         pop = self.blueprint.populate.random(n=10, seed=42)
         self.reproductor = Reproductor(self.blueprint)
         self.opt = Optimizer(pop, process)
+        self.opt.run_multithread(quiet=True)
 
-    def test_cross_over(self):
+    def test_tournament(self):
         """
-        Test the Cross-Over method.
+        Assert that tournament behaviours are sane.
 
         Tests
         -----
-        1.  2 parents, 2 numeric genes, 2 offspring
-        2.  2 parents, 3 numeric genes, 2 offspring
+        1. Assert number of parents is equal to n_parents
+        2. Assert it raises exception if total number of parents is lower then the number of
+           solicited parents
+        3. Assert if elitism lock works (that is if the number of n_parents and n_dispute end up
+           creating a situation where the top n_parents are necessarily selected)
         """
-        # Test 1
-        parents_data = {
-            'min_size': [8, 10],
-            'max_size': [10, 15]
-        }
-        parents = pd.DataFrame(parents_data)
-        expected_data = {
-            'min_size': [8, 15],
-            'max_size': [10, 10]
-        }
-        expected = pd.DataFrame(expected_data)
-        actual = self.reproductor.cross_over(parents, n_offspring=2)
+        self.opt.run_multithread()
+        self.opt.apply_fitness.single_criteria(output='gear_sickness', objective='max')
+        ranked_data = self.opt.datasets.fitness
+        n_selection = int(round(len(ranked_data) * 0.5))
+        ranked_pop = ranked_data.sort_values('Rank')[0:n_selection]
+
+        #  Test 1
+        parents = select_parents_by_tournament(ranked_pop, n_dispute=2, n_parents=2, seed=42)
+        expected = 2
+        actual = len(parents)
+        self.assertEqual(expected, actual)
+
+        parents = select_parents_by_tournament(ranked_pop, n_dispute=2, n_parents=3, seed=42)
+        expected = 3
+        actual = len(parents)
+        self.assertEqual(expected, actual)
+
+        parents = select_parents_by_tournament(ranked_pop, n_dispute=3, n_parents=3, seed=42)
+        expected = 3
+        actual = len(parents)
+        self.assertEqual(expected, actual)
+
+        # Test 2
+        with self.assertRaises(ParentOverloadException):
+            select_parents_by_tournament(ranked_pop, n_dispute=4, n_parents=3, seed=42)
+
+        with self.assertRaises(ParentOverloadException):
+            select_parents_by_tournament(ranked_pop, n_dispute=3, n_parents=4, seed=42)
+
+        # Test 3
+        sortcols = ['Rank', 'id']
+        expected = ranked_pop.reset_index().sort_values(by=sortcols)[0:3].reset_index(drop=True)
+        actual = select_parents_by_tournament(ranked_pop, n_dispute=3, n_parents=3)\
+            .reset_index()\
+            .sort_values(by=sortcols)\
+            .reset_index(drop=True)
         assert_frame_equal(expected, actual)
 
-    def test_tournament_method(self):
+    def test_sexual_offspring_generation(self):
         """
-        The Tournament method consist on picking N (normally 2) Creatures randomly and assign
-        the fittest of them to be the first parent, then repeating the same process again to
-        combine 2 parents to generate the 2 offspring.
+        Assert that the sexual reproduction method is generating the offspring population
+        correctly.
 
         Tests
         -----
-        1. 2-way battle Tournament to generate 2 parents and 2 offspring
-        2. 3-way battle Tournament to generate 2 parents and 2 offspring
-        3. 4-way battle Tournament to generate 2 parents and 2 offspring
+        1. Assert that the number of generated offspring correspond to the :n_offspring: param.
         """
-        self.opt.run(quiet=True)
         self.opt.apply_fitness.single_criteria(output='gear_sickness', objective='max')
-        sim_data = self.opt.datasets.simulation
+        ranked_data = self.opt.datasets.simulation
+        n_selection = int(round(len(ranked_data) * 0.5))
+        ranked_pop = ranked_data.sort_values('Rank')[0:n_selection]
+
+        offspring = self.reproductor.sexual(ranked_pop=ranked_pop,
+                                            n_offspring=4,
+                                            n_dispute=2,
+                                            n_parents=2,
+                                            children_per_relation=2,
+                                            rank_column='Rank',
+                                            seed=42)
 
         # Test 1
-        # expected = pd.DataFrame()
-        # selected_data = sim_data.sort_values('Rank')[0:5]
-        # actual = self.reproductor.tournament(selected_data,
-        #                                      total_offspring=6,
-        #                                      n_dispute=2,
-        #                                      n_parents=2,
-        #                                      n_offspring=2)
-        # assert_frame_equal(expected, actual)
+        expected = 4
+        actual = len(offspring)
+        self.assertEqual(expected, actual)

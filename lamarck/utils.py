@@ -29,10 +29,24 @@ class VectorialOverloadException(Exception):
     Exception is raised when an impossible vector is declared in the gene specs.
     """
 
-    def __init__(self, vector_length, domain_lenght):
-        message = f"""
-        Vector's length ({vector_length}) is greater than the domain's ({domain_lenght}),
-        therefore its impossible to assign a vector with those specifications since the
-        :replacement: parameter is set to `False`.
-        """
+    def __init__(self, set_length, domain_lenght):
+        message = (
+            f"`SetGene`'s length ({set_length}) is greater than the domain's "
+            f"({domain_lenght}), therefore its impossible to assign a SetGene with "
+            "those specifications."
+        )
+        super().__init__(message)
+
+
+class ParentOverloadException(Exception):
+    """
+    Exception is raised when an impossible number of parents is somehow solicited.
+    """
+
+    def __init__(self, total_parents, solicited_parents):
+        message = (
+            f"Total number of parents ({total_parents}) is lower than the number of different "
+            "parents required to fulfill the specifications (in that case, a number of "
+            f"{solicited_parents} is required)."
+        )
         super().__init__(message)

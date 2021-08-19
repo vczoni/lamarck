@@ -31,14 +31,12 @@ class TestBlueprint(unittest.TestCase):
                 'type': 'categorical',
                 'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR']}},
             'sick_pattern': {
-                'type': 'vectorial',
+                'type': 'array',
                 'specs': {'domain': ['L', 'R'],
-                          'replacement': True,
                           'length': 3}},
             'groove': {
-                'type': 'vectorial',
+                'type': 'set',
                 'specs': {'domain': ['hh', 'bd', 'sn'],
-                          'replacement': False,
                           'length': 3}},
             'is_loud': {
                 'type': 'boolean',

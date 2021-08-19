@@ -41,7 +41,8 @@ class TestBlueprintBuilder(unittest.TestCase):
         Genes:
             x: NUMERIC `int` number varying from 1 to 10
             y: CATEGORICAL value with domain ['a' , 'b', 'c']
-            z: VECTORIAL value with domain (0, 1), with replacement and length 8
+            z: ARRAY value with domain (0, 1), with length 8
+            v: SET value with domain (0, 1, 2), with length 3
             w: BOOLEAN
         """
         expected = {
@@ -53,10 +54,13 @@ class TestBlueprintBuilder(unittest.TestCase):
                 'type': 'categorical',
                 'specs': {'domain': ['a', 'b', 'c']}},
             'z': {
-                'type': 'vectorial',
+                'type': 'array',
                 'specs': {'domain': (0, 1),
-                          'replacement': True,
                           'length': 8}},
+            'v': {
+                'type': 'set',
+                'specs': {'domain': (0, 1, 2),
+                          'length': 3}},
             'w': {
                 'type': 'boolean',
                 'specs': {}}
@@ -64,8 +68,8 @@ class TestBlueprintBuilder(unittest.TestCase):
         builder = BlueprintBuilder()
         builder.add_numeric_gene(name='x', domain=int, range=[1, 10])
         builder.add_categorical_gene(name='y', domain=['a', 'b', 'c'])
-        builder.add_vectorial_gene(name='z', domain=(0, 1), replacement=True,
-                                   length=8)
+        builder.add_array_gene(name='z', domain=(0, 1), length=8)
+        builder.add_set_gene(name='v', domain=(0, 1, 2), length=3)
         builder.add_boolean_gene(name='w')
         actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
@@ -141,43 +145,38 @@ class TestBlueprintBuilder(unittest.TestCase):
         -----
         1. With valid specs
         Genes:
-            vec_replacement: domain=[0, 1], replacement=True, lenght=5
-            vec_no_replacement: domain=['X', 'Y', 'Z'], replacement=False, lenght=3
+            vec_replacement: domain=[0, 1], replacement=True (array), lenght=5
+            vec_no_replacement: domain=['X', 'Y', 'Z'], replacement=False (set), lenght=3
         2. With invalid specs
         Genes:
-            vec_invalid: domain=['X', 'Y', 'Z'], replacement=False, lenght=5
+            vec_invalid: domain=['X', 'Y', 'Z'], replacement=False (set), lenght=5
         """
         # Test 1
         expected = {
             'vec_replacement': {
-                'type': 'vectorial',
+                'type': 'array',
                 'specs': {'domain': [0, 1],
-                          'replacement': True,
                           'length': 5}},
             'vec_no_replacement': {
-                'type': 'vectorial',
+                'type': 'set',
                 'specs': {'domain': ['X', 'Y', 'Z'],
-                          'replacement': False,
                           'length': 3}}
         }
         builder = BlueprintBuilder()
-        builder.add_vectorial_gene(name='vec_replacement',
-                                   domain=[0, 1],
-                                   replacement=True,
-                                   length=5)
-        builder.add_vectorial_gene(name='vec_no_replacement',
-                                   domain=['X', 'Y', 'Z'],
-                                   replacement=False,
-                                   length=3)
+        builder.add_array_gene(name='vec_replacement',
+                               domain=[0, 1],
+                               length=5)
+        builder.add_set_gene(name='vec_no_replacement',
+                             domain=['X', 'Y', 'Z'],
+                             length=3)
         actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
 
         # Test 2
         with self.assertRaises(VectorialOverloadException):
-            builder.add_vectorial_gene(name='vec_invalid',
-                                       domain=['X', 'Y', 'Z'],
-                                       replacement=False,
-                                       length=5)
+            builder.add_set_gene(name='vec_invalid',
+                                 domain=['X', 'Y', 'Z'],
+                                 length=5)
 
     def test_adding_boolean_gene(self):
         """

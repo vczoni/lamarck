@@ -1,12 +1,9 @@
 import unittest
 
-import numpy as np
-import pandas as pd
 from pandas.testing import assert_frame_equal
 
 from lamarck import Blueprint, Optimizer
-from lamarck.reproduce import (Reproductor,
-                               child_generator,
+from lamarck.reproduce import (Populator,
                                select_parents_by_tournament)
 from lamarck.utils import ParentOverloadException
 
@@ -72,7 +69,7 @@ class TestReproduction(unittest.TestCase):
 
         self.blueprint = Blueprint(blueprint_dict)
         pop = self.blueprint.populate.random(n=10, seed=42)
-        self.reproductor = Reproductor(self.blueprint)
+        self.populator = Populator(self.blueprint)
         self.opt = Optimizer(pop, process)
         self.opt.run_multithread(quiet=True)
 
@@ -134,21 +131,103 @@ class TestReproduction(unittest.TestCase):
         Tests
         -----
         1. Assert that the number of generated offspring correspond to the :n_offspring: param.
+            1.1. 4 children (children_per_relation=2) - must result 4 children
+            1.2. 5 children (children_per_relation=2) - must result 6 children
+            1.3. 4 children (children_per_relation=3) - must result 6 children
+        2. Distinct children is equal or greater than the number of children_per_relation
+            2.1. n_parents=2, children_per_relation=2
+            2.2. n_parents=2, children_per_relation=3
+            2.3. n_parents=3, children_per_relation=3
+            2.4. n_parents=3, children_per_relation=4
         """
         self.opt.apply_fitness.single_criteria(output='gear_sickness', objective='max')
         ranked_data = self.opt.datasets.simulation
         n_selection = int(round(len(ranked_data) * 0.5))
         ranked_pop = ranked_data.sort_values('Rank')[0:n_selection]
 
-        offspring = self.reproductor.sexual(ranked_pop=ranked_pop,
-                                            n_offspring=4,
-                                            n_dispute=2,
-                                            n_parents=2,
-                                            children_per_relation=2,
-                                            rank_column='Rank',
-                                            seed=42)
-
-        # Test 1
+        # Test 1.1.
+        offspring = self.populator.sexual(ranked_pop=ranked_pop,
+                                          n_offspring=4,
+                                          n_dispute=2,
+                                          n_parents=2,
+                                          children_per_relation=2,
+                                          rank_column='Rank',
+                                          seed=42)
         expected = 4
         actual = len(offspring)
         self.assertEqual(expected, actual)
+
+        # Test 1.2.
+        offspring = self.populator.sexual(ranked_pop=ranked_pop,
+                                          n_offspring=5,
+                                          n_dispute=2,
+                                          n_parents=2,
+                                          children_per_relation=2,
+                                          rank_column='Rank',
+                                          seed=42)
+        expected = 6
+        actual = len(offspring)
+        self.assertEqual(expected, actual)
+
+        # Test 1.3.
+        offspring = self.populator.sexual(ranked_pop=ranked_pop,
+                                          n_offspring=4,
+                                          n_dispute=2,
+                                          n_parents=2,
+                                          children_per_relation=3,
+                                          rank_column='Rank',
+                                          seed=42)
+        expected = 6
+        actual = len(offspring)
+        self.assertEqual(expected, actual)
+
+        # Test 2
+        n_tries = 500
+        for _ in range(n_tries):
+            # Test 2.1.
+            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+                                              n_offspring=4,
+                                              n_dispute=2,
+                                              n_parents=2,
+                                              children_per_relation=2,
+                                              rank_column='Rank',
+                                              seed=42)
+            expected = 2
+            actual = len(offspring.drop_duplicates())
+            self.assertGreaterEqual(actual, expected)
+
+            # Test 2.2.
+            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+                                              n_offspring=4,
+                                              n_dispute=2,
+                                              n_parents=2,
+                                              children_per_relation=3,
+                                              rank_column='Rank',
+                                              seed=42)
+            expected = 3
+            actual = len(offspring.drop_duplicates())
+            self.assertGreaterEqual(actual, expected)
+
+            # Test 2.3.
+            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+                                              n_offspring=4,
+                                              n_dispute=2,
+                                              n_parents=3,
+                                              children_per_relation=3,
+                                              rank_column='Rank',
+                                              seed=42)
+            expected = 3
+            actual = len(offspring.drop_duplicates())
+            self.assertGreaterEqual(actual, expected)
+
+            # Test 2.5.
+            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+                                              n_offspring=4,
+                                              n_dispute=2,
+                                              n_parents=3,
+                                              children_per_relation=4,
+                                              rank_column='Rank',
+                                              seed=42)
+            expected = 4
+            actual = len(offspring.drop_duplicates())
+            self.assertGreaterEqual(actual, expected)

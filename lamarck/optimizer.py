@@ -350,11 +350,11 @@ class Optimizer:
         self.datasets.results = pd.concat(creature_result_list)
 
 
-def select_fittest(ranked_data: pd.DataFrame,
+def select_fittest(ranked_pop: pd.DataFrame,
                    p: float = 0.5,
                    rank_col: str = 'Rank') -> pd.DataFrame:
     """
     Select the fraction :p: of creatures from a ranked population data based on a Rank column.
     """
-    n_selection = int(round(len(ranked_data) * p))
-    return ranked_data.sort_values(rank_col)[0:n_selection]
+    n_selection = int(round(len(ranked_pop) * p))
+    return ranked_pop.sort_values(rank_col)[0:n_selection]

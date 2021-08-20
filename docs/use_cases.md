@@ -188,22 +188,54 @@ opt.datasets.fitness.head()
 | c4db4ccc569b41bd7a...|      66 | 0         |   1716 |
 | 2e9ca363a8f09621ac...|      66 | 0.0679169 |   1647 |
 
+## 3. Reproduction
 
-## 3. Run Simulation
+### 3.1. Selection
+```python
+from lamarck.optimizer import select_fittest
 
-### 3.1. Configure simulation control vars
+ranked_pop = opt.datasets.simulation
+fittest_pop = select_fittest(ranked_pop=ranked_pop, p=0.5, rank_col='Rank')
+fittest_pop.head()
+```
+
+### 3.2. Reproduce (Sexual Relations)
+```python
+from lamarck.reproduce import Populator
+
+populator = Populator(blueprint=blueprint)
+offspring = populator.sexual(ranked_pop=fittest_pop,
+                             n_offspring=5,
+                             n_dispute=2,
+                             n_parents=2,
+                             children_per_relation=2,
+                             seed=42)
+offspring
+```
+
+### 3.2. Mutate (Asexual Relations)
+```python
+mutated_offspring = populator.asexual(ranked_pop=fittest_pop,
+                                      n_offspring=5,
+                                      seed=42)
+mutated_offspring
+```
+
+## 4. Run Simulation
+
+### 4.1. Configure simulation control vars
 ```python
 opt.config.max_generations = 50
 opt.config.max_stall = 5
 opt.config.p_selection = 0.5
-opt.config.p_elitism = 0.1
 opt.config.p_tournament = 0.4
 opt.config.n_dispute = 2
+opt.config.n_parents = 2
+opt.config.n_children_per_relation = 2
 opt.config.p_mutation= 0.05
-opt.config.max_mutated_genes = 1
 ```
 
-### 3.2. Define objectives and selection criteria for the simulations
+### 4.2. Define objectives and selection criteria for the simulations
 ```python
 # Single objective
 optpop = opt.simulate.single_criteria(output='power', objective='max')

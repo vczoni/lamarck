@@ -69,10 +69,17 @@ class ChildGenerator:
             parents_genes = tuple(parents[gene.name].tolist())
             children_genes = gene.reproduce.sexual(parents_genes, n_children, seed)
             children_data.update({gene.name: children_genes})
-        return pd.DataFrame(children_data)
+        offspring = pd.DataFrame(children_data).drop_duplicates()
+        offspring_size = len(offspring)
+        if offspring_size < n_children:
+            offspring = ChildGenerator.sexual(parents,
+                                              gene_collection,
+                                              n_children,
+                                              seed)
+        return offspring
 
     @staticmethod
-    def asexual(self):
+    def asexual():
         """
         """
 
@@ -80,7 +87,7 @@ class ChildGenerator:
 child_generator = ChildGenerator()
 
 
-class Reproductor:
+class Populator:
     """
     Class for generating new Creaturs through Sexual and Asexual (exclusive Mutations)
     reproductions. The mutations may also occur on some of the newly generated offspring
@@ -127,17 +134,17 @@ class Reproductor:
         :rank_column:           Name of the ranking column (default: 'Rank').
         :seed:                  Random Number Generator control (default: None).
         """
+        np.random.seed(seed)
         n_relations = np.ceil(n_offspring / children_per_relation).astype(int)
         offspring = []
         for _ in range(n_relations):
             parents = select_parents_by_tournament(
-                ranked_pop, n_dispute, n_parents, rank_column, seed)
+                ranked_pop, n_dispute, n_parents, rank_column)
             kids = child_generator.sexual(parents,
                                           self.blueprint.genes,
-                                          children_per_relation,
-                                          seed)
+                                          children_per_relation)
             offspring.append(kids)
-        return pd.concat(offspring)
+        return pd.concat(offspring).reset_index(drop=True)
 
     def asexual(self):
         """

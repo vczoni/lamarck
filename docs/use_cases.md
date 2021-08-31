@@ -31,16 +31,14 @@ from lamarck import BlueprintBuilder
 builder = BlueprintBuilder()
 
 # Adding gene specs
-builder.add_numeric_gene(name='w',
-                         domain=int,
-                         range=[8, 15])
+builder.add_integer_gene(name='w',
+                         domain=(8, 15))
 
-builder.add_numeric_gene(name='x',
-                         domain=float,
-                         range=[0, 10])
+builder.add_float_gene(name='x',
+                       domain=(0, 10))
 
 builder.add_categorical_gene(name='y',
-                             domain=['A', 'B', 'C'])
+                             domain=('A', 'B', 'C'))
 
 builder.add_array_gene(name='z',
                        domain=(0, 1, 2, 3, 4),
@@ -60,23 +58,21 @@ print(blueprint._dict)
 >```
 >{
 >    'w': {
->        'type': 'numeric',
->        'specs': {'domain': <class 'int'>,
->                  'range': [8, 15]}},
+>        'type': 'integer',
+>        'specs': {'domain': (8, 15)}},
 >    'x': {
 >        'type': 'numeric',
->        'specs': {'domain': <class 'float'>,
->                  'range': [0, 10]}},
+>        'specs': {'domain': (0, 10)}},
 >    'y': {
 >        'type': 'categorical',
->        'specs': {'domain': ['A', 'B', 'C']}},
+>        'specs': {'domain': ('A', 'B', 'C')}},
 >    'z': {
 >        'type': 'array',
->        'specs': {'domain': [0, 1, 2, 3, 4],
+>        'specs': {'domain': (0, 1, 2, 3, 4),
 >                  'length': 5}},
 >    'w': {
 >        'type': 'set',
->        'specs': {'domain': [0, 1, 2, 3, 4],
+>        'specs': {'domain': (0, 1, 2, 3, 4),
 >                  'length': 5}},
 >    'flag': {
 >        'type': 'boolean',

@@ -47,12 +47,11 @@ class TestBlueprintBuilder(unittest.TestCase):
         """
         expected = {
             'x': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [1, 10]}},
+                'type': 'integer',
+                'specs': {'domain': (1, 10)}},
             'y': {
                 'type': 'categorical',
-                'specs': {'domain': ['a', 'b', 'c']}},
+                'specs': {'domain': ('a', 'b', 'c')}},
             'z': {
                 'type': 'array',
                 'specs': {'domain': (0, 1),
@@ -66,8 +65,8 @@ class TestBlueprintBuilder(unittest.TestCase):
                 'specs': {}}
         }
         builder = BlueprintBuilder()
-        builder.add_numeric_gene(name='x', domain=int, range=[1, 10])
-        builder.add_categorical_gene(name='y', domain=['a', 'b', 'c'])
+        builder.add_integer_gene(name='x', domain=(1, 10))
+        builder.add_categorical_gene(name='y', domain=('a', 'b', 'c'))
         builder.add_array_gene(name='z', domain=(0, 1), length=8)
         builder.add_set_gene(name='v', domain=(0, 1, 2), length=3)
         builder.add_boolean_gene(name='w')
@@ -84,35 +83,24 @@ class TestBlueprintBuilder(unittest.TestCase):
         Genes:
             x: `int` number varying from 1 to 10
             y: `float` number varying from 0 to 6 pi
-        2. Trying with a domain that is not `int` or `float`
         """
         builder = BlueprintBuilder()
 
         # Test 1
         expected = {
             'x': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [1, 10]}},
+                'type': 'integer',
+                'specs': {'domain': (1, 10)}},
             'y': {
-                'type': 'numeric',
-                'specs': {'domain': float,
-                          'range': [0, 6*np.pi]}}
+                'type': 'float',
+                'specs': {'domain': (0, 6*np.pi)}}
         }
-        builder.add_numeric_gene(name='x',
-                                 domain=int,
-                                 range=[1, 10])
-        builder.add_numeric_gene(name='y',
-                                 domain=float,
-                                 range=[0, 6*np.pi])
+        builder.add_integer_gene(name='x',
+                                 domain=(1, 10))
+        builder.add_float_gene(name='y',
+                               domain=(0, 6*np.pi))
         actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
-
-        # Test 2
-        with self.assertRaises(TypeError):
-            builder.add_numeric_gene(name='x',
-                                     domain=bool,
-                                     range=[False, True])
 
     def test_adding_categorical_gene(self):
         """
@@ -125,16 +113,16 @@ class TestBlueprintBuilder(unittest.TestCase):
         expected = {
             'names': {
                 'type': 'categorical',
-                'specs': {'domain': ['Jake', 'Amy', 'Raymond', 'Rosa']}},
+                'specs': {'domain': ('Jake', 'Amy', 'Raymond', 'Rosa')}},
             'ages': {
                 'type': 'categorical',
-                'specs': {'domain': [35, 34, 53, 29]}}
+                'specs': {'domain': (35, 34, 53, 29)}}
         }
         builder = BlueprintBuilder()
         builder.add_categorical_gene(name='names',
-                                     domain=['Jake', 'Amy', 'Raymond', 'Rosa'])
+                                     domain=('Jake', 'Amy', 'Raymond', 'Rosa'))
         builder.add_categorical_gene(name='ages',
-                                     domain=[35, 34, 53, 29])
+                                     domain=(35, 34, 53, 29))
         actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
 
@@ -155,19 +143,19 @@ class TestBlueprintBuilder(unittest.TestCase):
         expected = {
             'vec_replacement': {
                 'type': 'array',
-                'specs': {'domain': [0, 1],
+                'specs': {'domain': (0, 1),
                           'length': 5}},
             'vec_no_replacement': {
                 'type': 'set',
-                'specs': {'domain': ['X', 'Y', 'Z'],
+                'specs': {'domain': ('X', 'Y', 'Z'),
                           'length': 3}}
         }
         builder = BlueprintBuilder()
         builder.add_array_gene(name='vec_replacement',
-                               domain=[0, 1],
+                               domain=(0, 1),
                                length=5)
         builder.add_set_gene(name='vec_no_replacement',
-                             domain=['X', 'Y', 'Z'],
+                             domain=('X', 'Y', 'Z'),
                              length=3)
         actual = builder.get_blueprint()._dict
         self.assertDictEqual(expected, actual)
@@ -175,7 +163,7 @@ class TestBlueprintBuilder(unittest.TestCase):
         # Test 2
         with self.assertRaises(VectorialOverloadException):
             builder.add_set_gene(name='vec_invalid',
-                                 domain=['X', 'Y', 'Z'],
+                                 domain=('X', 'Y', 'Z'),
                                  length=5)
 
     def test_adding_boolean_gene(self):

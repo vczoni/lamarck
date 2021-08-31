@@ -23,17 +23,14 @@ class TestReproduction(unittest.TestCase):
     def setUp(self):
         blueprint_dict = {
             'min_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [6, 10]}},
+                'type': 'integer',
+                'specs': {'domain': [6, 10]}},
             'max_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [8, 24]}},
+                'type': 'integer',
+                'specs': {'domain': [8, 24]}},
             'price': {
-                'type': 'numeric',
-                'specs': {'domain': float,
-                          'range': [100, 250]}},
+                'type': 'float',
+                'specs': {'domain': [100, 250]}},
             'brand': {
                 'type': 'categorical',
                 'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR']}},

@@ -16,17 +16,14 @@ class TestBlueprint(unittest.TestCase):
     def setUp(self):
         self.blueprint_dict = {
             'min_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [6, 10]}},
+                'type': 'integer',
+                'specs': {'domain': (6, 10)}},
             'max_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [8, 24]}},
+                'type': 'integer',
+                'specs': {'domain': (8, 24)}},
             'price': {
-                'type': 'numeric',
-                'specs': {'domain': float,
-                          'range': [100, 250]}},
+                'type': 'float',
+                'specs': {'domain': (100, 250)}},
             'brand': {
                 'type': 'categorical',
                 'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR']}},
@@ -52,7 +49,7 @@ class TestBlueprint(unittest.TestCase):
         -----
         1. N = 2 (2**7 = 128 combinations)
         2. N = 3 (3**6 * 2 = 1458 combinations)
-        3. N = [3, 3, 5, 3, 6, 6, 2] (9720 combinations)
+        3. N = (3, 3, 5, 3, 6, 6, 2) (9720 combinations)
         """
         blueprint = Blueprint(self.blueprint_dict)
         input_cols = list(self.blueprint_dict.keys())
@@ -62,11 +59,12 @@ class TestBlueprint(unittest.TestCase):
             [6, 10],
             [8, 24],
             [100., 250.],
-            ['AMTA', 'NOSOR'],
+            ['AMTA', 'REPAL'],
             [('L', 'L', 'L'), ('R', 'R', 'R')],
             [('hh', 'bd', 'sn'), ('sn', 'bd', 'hh')],
             [False, True],
         )
+        items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
         actual = blueprint.populate.deterministic(n=2)
@@ -83,6 +81,7 @@ class TestBlueprint(unittest.TestCase):
             [('hh', 'bd', 'sn'), ('bd', 'hh', 'sn'), ('sn', 'bd', 'hh')],
             [False, True],
         )
+        items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
         actual = blueprint.populate.deterministic(n=3)
@@ -101,6 +100,7 @@ class TestBlueprint(unittest.TestCase):
              ('bd', 'sn', 'hh'), ('sn', 'hh', 'bd'), ('sn', 'bd', 'hh')],
             [False, True],
         )
+        items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
         n_dict = {
@@ -110,7 +110,7 @@ class TestBlueprint(unittest.TestCase):
             'brand': 3,
             'sick_pattern': 6,
             'groove': 6,
-            'is_loud': None
+            'is_loud': 2
         }
         actual = blueprint.populate.deterministic(n=n_dict)
         assert_frame_equal(expected, actual)

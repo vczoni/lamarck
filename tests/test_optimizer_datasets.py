@@ -27,17 +27,14 @@ class testOptimizerDatasets(unittest.TestCase):
     def setUp(self):
         blueprint_dict = {
             'min_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [6, 10]}},
+                'type': 'integer',
+                'specs': {'domain': [6, 10]}},
             'max_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [8, 24]}},
+                'type': 'integer',
+                'specs': {'domain': [8, 24]}},
             'price': {
-                'type': 'numeric',
-                'specs': {'domain': float,
-                          'range': [100, 250]}},
+                'type': 'float',
+                'specs': {'domain': [100, 250]}},
             'brand': {
                 'type': 'categorical',
                 'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR']}},
@@ -171,7 +168,7 @@ class testOptimizerDatasets(unittest.TestCase):
             expected_data['grooveness'].append(out_dict['grooveness'])
         out_data = pd.DataFrame(expected_data).set_index('id')
 
-        expected = out_data
+        expected = out_data.sort_index()
         opt.run(quiet=True)
-        actual = opt.datasets.results.head()
+        actual = opt.datasets.results.head().sort_index()
         assert_frame_equal(expected, actual)

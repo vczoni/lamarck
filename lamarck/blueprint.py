@@ -6,7 +6,7 @@ import itertools
 import pandas as pd
 import numpy as np
 
-from lamarck.gene import GeneCollection
+from lamarck.genes import GeneCollection
 from lamarck.utils import VectorialOverloadException
 
 
@@ -16,22 +16,24 @@ class BlueprintBuilder:
 
     Genome Specifications
     ---------------------
-        1. Numeric
-            1.1. Domain: type {int, float}
-            1.2. Range: `list` or `tuple`
+        1. Integer
+            1.1. Domain: `tuple`
 
-        2. Categorical
-            2.1. Domain: `list` or `tuple`
+        2. Float
+            2.1. Domain: `tuple`
 
-        3. Array
-            3.1. Domain: `list` or `tuple`
-            3.2. Length: int
+        3. Categorical
+            3.1. Domain: `tuple`
 
-        4. Set
-            4.1. Domain: `list` or `tuple`
-            4.2. Length: int
+        4. Boolean
 
-        5. Boolean
+        5. Array
+            5.1. Domain: `tuple`
+            5.2. Length: int
+
+        6. Set
+            6.1. Domain: `tuple`
+            6.2. Length: int
     """
     _blueprint: dict
 
@@ -51,132 +53,81 @@ class BlueprintBuilder:
         blueprint_dict = deepcopy(self._blueprint)
         return Blueprint(blueprint_dict)
 
-    def add_numeric_gene(self, name: str, domain: type, range: list | tuple) -> None:
+    def add_integer_gene(self, name: str, domain: tuple) -> None:
         """
-        Add a Numeric gene specs for the blueprint.
+        Add a Integer gene specs for the blueprint.
 
         Parameters
         ----------
         :name:      Gene name.
-        :domain:    Class of the variable (`int` or `float`).
-        :range:     Pair of values for `min` and `max` values.
+        :domain:    Pair of values for `min` and `max` values.
 
         Example
         -------
         >>> builder = BlueprintBuilder()
-        >>> builder.add_numeric_gene(name='x', domain=int, range=[0, 10])
+        >>> builder.add_integer_gene(name='x', domain=(0, 10))
         >>> blueprint = builder.get_blueprint()
         >>> blueprint.show()
         - x
-            |- type: numeric
+            |- type: integer
             |- specs
-                |- domain: <class 'int'>
-                |- range: [0, 10]
+                |- domain: (0, 10)
         """
-        if domain not in [int, float]:
-            raise TypeError("domain must be either int or float")
         genespecs = {
-            'type': 'numeric',
-            'specs': {'domain': domain,
-                      'range': range}
+            'type': 'integer',
+            'specs': {'domain': domain}
         }
         self._blueprint.update({name: genespecs})
 
-    def add_categorical_gene(self, name: str, domain: list | tuple) -> None:
+    def add_float_gene(self, name: str, domain: tuple) -> None:
+        """
+        Add a Float gene specs for the blueprint.
+
+        Parameters
+        ----------
+        :name:      Gene name.
+        :domain:    Pair of values for `min` and `max` values.
+
+        Example
+        -------
+        >>> builder = BlueprintBuilder()
+        >>> builder.add_float_gene(name='x', domain=(0, 10))
+        >>> blueprint = builder.get_blueprint()
+        >>> blueprint.show()
+        - x
+            |- type: float
+            |- specs
+                |- domain: (0, 10)
+        """
+        genespecs = {
+            'type': 'float',
+            'specs': {'domain': domain}
+        }
+        self._blueprint.update({name: genespecs})
+
+    def add_categorical_gene(self, name: str, domain: tuple) -> None:
         """
         Add a Categorical gene specs for the blueprint.
 
         Parameters
         ----------
         :name:      Gene name.
-        :domain:    List of all categories.
+        :domain:    `tuple` with all categories.
 
         Example
         -------
         >>> builder = BlueprintBuilder()
-        >>> builder.add_categorical_gene(name='letters', domain=['a', 'b', 'c'])
+        >>> builder.add_categorical_gene(name='letters', domain=('a', 'b', 'c'))
         >>> blueprint = builder.get_blueprint()
         >>> blueprint.show()
         - letters
             |- type: categorical
             |- specs
-                |- domain: ['a', 'b', 'c']
+                |- domain: ('a', 'b', 'c')
         """
         genespecs = {
             'type': 'categorical',
             'specs': {'domain': domain}
-        }
-        self._blueprint.update({name: genespecs})
-
-    def add_array_gene(self, name: str, domain: list | tuple, length: int) -> None:
-        """
-        Add an Array gene specs for the blueprint.
-
-        An `Array` Gene is a `Vectorial` where its permitted to repeat a value in the same
-        vector.
-
-        Parameters
-        ----------
-        :name:          Gene name.
-        :domain:        List of all possible categories contained in the vector.
-        :length:        Length of the vectors.
-
-        Example
-        -------
-        >>> builder = BlueprintBuilder()
-        >>> builder.add_array_gene(name='sequence',
-        ...                            domain=['A', 'T', 'C', 'G'],
-        ...                            length=1000)
-        >>> blueprint = builder.get_blueprint()
-        >>> blueprint.show()
-        - sequence
-            |- type: array
-            |- specs
-                |- domain: ['A', 'T', 'C', 'G']
-                |- length: 1000
-        """
-        genespecs = {
-            'type': 'array',
-            'specs': {'domain': domain,
-                      'length': length}
-        }
-        self._blueprint.update({name: genespecs})
-
-    def add_set_gene(self, name: str, domain: list | tuple, length: int) -> None:
-        """
-        Add an Set gene specs for the blueprint.
-
-        A `Set` Gene is a `Vectorial` where its NOT permitted to repeat a value in the same
-        vector.
-
-        Warning: the vector CANNOT have duplicate values, which means its :length: parameter
-        CAN'T be greater than the length of its :domain:.
-
-        Parameters
-        ----------
-        :name:          Gene name.
-        :domain:        List of all possible categories contained in the vector.
-        :length:        Length of the vectors.
-
-        Example
-        -------
-        >>> builder = BlueprintBuilder()
-        >>> builder.add_set_gene(name='cities',
-        ...                      domain=['C1', 'C2', 'C3', 'C4', 'C5', 'C6'],
-        ...                      length=5)
-        >>> blueprint = builder.get_blueprint()
-        >>> blueprint.show()
-        - cities
-            |- type: set
-            |- specs
-                |- domain: ['C1', 'C2', 'C3', 'C4', 'C5', 'C6']
-                |- length: 5
-        """
-        check_vector_validity(domain, length)
-        genespecs = {
-            'type': 'set',
-            'specs': {'domain': domain,
-                      'length': length}
         }
         self._blueprint.update({name: genespecs})
 
@@ -186,7 +137,7 @@ class BlueprintBuilder:
 
         Parameters
         ----------
-        :name:          Gene name.
+        :name:  Gene name.
 
         Example
         -------
@@ -208,6 +159,78 @@ class BlueprintBuilder:
         }
         self._blueprint.update({name: genespecs})
 
+    def add_array_gene(self, name: str, domain: list | tuple, length: int) -> None:
+        """
+        Add an Array gene specs for the blueprint.
+
+        An `Array` Gene is a `Vectorial` where its permitted to repeat a value in the same
+        vector.
+
+        Parameters
+        ----------
+        :name:      Gene name.
+        :domain:    `tuple` with all possible categories contained in the vector.
+        :length:    Length of the vectors.
+
+        Example
+        -------
+        >>> builder = BlueprintBuilder()
+        >>> builder.add_array_gene(name='sequence',
+        ...                        domain=('A', 'T', 'C', 'G'),
+        ...                        length=1000)
+        >>> blueprint = builder.get_blueprint()
+        >>> blueprint.show()
+        - sequence
+            |- type: array
+            |- specs
+                |- domain: ('A', 'T', 'C', 'G')
+                |- length: 1000
+        """
+        genespecs = {
+            'type': 'array',
+            'specs': {'domain': domain,
+                      'length': length}
+        }
+        self._blueprint.update({name: genespecs})
+
+    def add_set_gene(self, name: str, domain: list | tuple, length: int) -> None:
+        """
+        Add an Set gene specs for the blueprint.
+
+        A `Set` Gene is a `Vectorial` where its NOT permitted to repeat a value in the same
+        vector.
+
+        Warning: the vector CANNOT have duplicate values, which means its :length: parameter
+        CAN'T be greater than the length of its :domain:.
+
+        Parameters
+        ----------
+        :name:      Gene name.
+        :domain:    `tuple` with all possible categories contained in the vector.
+        :length:    Length of the vectors (cannot be grater than the length of its :domain:).
+
+        Example
+        -------
+        >>> builder = BlueprintBuilder()
+        >>> builder.add_set_gene(name='cities',
+        ...                      domain=('C1', 'C2', 'C3', 'C4', 'C5', 'C6'),
+        ...                      length=5)
+        >>> blueprint = builder.get_blueprint()
+        >>> blueprint.show()
+        - cities
+            |- type: set
+            |- specs
+                |- domain: ('C1', 'C2', 'C3', 'C4', 'C5', 'C6')
+                |- length: 5
+        """
+        check_vector_validity(domain, length)
+        genespecs = {
+            'type': 'set',
+            'specs': {'domain': domain,
+                      'length': length}
+        }
+        self._blueprint.update({name: genespecs})
+
 
 def check_vector_validity(domain, length):
     domain_lenght = len(domain)
@@ -223,24 +246,22 @@ class Blueprint:
     ----------------------
     blueprint_dict = {
         'w': {
-            'type': 'numeric',
-            'specs': {'domain': float,
-                      'range': [8, 15]}},
+            'type': 'float',
+            'specs': {'domain': (8, 15)}},
         'x': {
-            'type': 'numeric',
-            'specs': {'domain': float,
-                      'range': [0, 10]}},
+            'type': 'float',
+            'specs': {'domain': (0, 10)}},
         'y': {
             'type': 'categorical',
-            'specs': {'domain': ['A', 'B', 'C']}},
+            'specs': {'domain': ('A', 'B', 'C')}},
         'z': {
             'type': 'vectorial',
-            'specs': {'domain': [0, 1, 2, 3, 4],
+            'specs': {'domain': (0, 1, 2, 3, 4),
                       'replacement': False,
                       'length': 5}},
         'w': {
             'type': 'set',
-            'specs': {'domain': [0, 1, 2, 3, 4],
+            'specs': {'domain': (0, 1, 2, 3, 4),
                       'length': 5}},
         'flag': {
             'type': 'boolean'
@@ -271,7 +292,7 @@ class Blueprint:
                     subdivisions as Values.
 
                     Subdivisions Examples:
-                        1. numeric: min=10, max=90, n=5
+                        1. float: min=10, max=90, n=5
                             - values = (10, 30, 50, 70, 90)
                         2. categorical: domain=('A', 'B', 'C', 'D', 'E'), n=3
                             - values = ('A', 'C', 'E')
@@ -294,19 +315,18 @@ class Blueprint:
             --------
             >>> blueprint_dict = {
             ...     'x': {
-            ...         'type': 'numeric',
-            ...         'specs': {'domain': float,
-            ...                   'range': [0, 10]}},
+            ...         'type': 'float',
+            ...         'specs': {'domain': (0, 10)}},
             ...     'y': {
             ...         'type': 'categorical',
-            ...         'specs': {'domain': ['A', 'B', 'C']}},
+            ...         'specs': {'domain': ('A', 'B', 'C')}},
             ...     'z': {
             ...         'type': 'array',
-            ...         'specs': {'domain': [0, 1, 2, 3, 4],
+            ...         'specs': {'domain': (0, 1, 2, 3, 4),
             ...                   'length': 5}},
             ...     'w': {
             ...         'type': 'set',
-            ...         'specs': {'domain': [0, 1, 2, 3, 4],
+            ...         'specs': {'domain': (0, 1, 2, 3, 4),
             ...                   'length': 5}},
             ...     'flag': {
             ...         'type': 'boolean',
@@ -321,8 +341,7 @@ class Blueprint:
             162
 
             - Example 2: n as a Dictionary
-            # disclaimer: Boolean genes doesn't need any value
-            >>> n_dict = {'x': 5, 'y': 3, 'z': 6, 'w': 2, 'flag': None}
+            >>> n_dict = {'x': 5, 'y': 3, 'z': 6, 'w': 2, 'flag': 2}
             >>> data = blueprint.populate.deterministic(n=n_dict)
             >>> len(data)
             360
@@ -331,7 +350,12 @@ class Blueprint:
                 n_dict = {gene: n for gene in self._bp._dict}
             else:
                 n_dict = n
-            ranges = [self._bp.genes[gene].get_linspace(n_dict[gene]) for gene in self._bp._dict]
+
+            def get_unique_linspace(gene):
+                genes = self._bp.genes[gene].get_linspace(n_dict[gene])
+                return np.unique(genes)
+
+            ranges = [get_unique_linspace(gene) for gene in self._bp._dict]
             data = itertools.product(*ranges)
             columns = list(self._bp._dict)
             data = pd.DataFrame(data=data, columns=columns)
@@ -355,19 +379,18 @@ class Blueprint:
             --------
             >>> blueprint_dict = {
             ...     'x': {
-            ...         'type': 'numeric',
-            ...         'specs': {'domain': float,
-            ...                   'range': [0, 10]}},
+            ...         'type': 'float',
+            ...         'specs': {'domain': (0, 10)}},
             ...     'y': {
             ...         'type': 'categorical',
-            ...         'specs': {'domain': ['A', 'B', 'C']}},
+            ...         'specs': {'domain': ('A', 'B', 'C')}},
             ...     'z': {
             ...         'type': 'array',
-            ...         'specs': {'domain': [0, 1, 2, 3, 4],
+            ...         'specs': {'domain': (0, 1, 2, 3, 4),
             ...                   'length': 5}},
             ...     'w': {
             ...         'type': 'set',
-            ...         'specs': {'domain': [0, 1, 2, 3, 4],
+            ...         'specs': {'domain': (0, 1, 2, 3, 4),
             ...                   'length': 5}},
             ...     'flag': {
             ...         'type': 'boolean',
@@ -429,18 +452,16 @@ class Blueprint:
 
         Example
         -------
-        - Genes x and y are numeric and y cannot be bigger than 2*x
+        - Genes x and y are integers and y cannot be bigger than 2*x
         - Code:
         >>> from lamarck import Blueprint
         >>> blueprint_dict = {
         ...     'x': {
-        ...         'type': 'numeric',
-        ...         'specs': {'domain': int,
-        ...                   'range': [0, 10]}},
+        ...         'type': 'integer',
+        ...         'specs': {'domain': (0, 10)}},
         ...     'y': {
-        ...         'type': 'numeric',
-        ...         'specs': {'domain': int,
-        ...                   'range': [0, 10]}}
+        ...         'type': 'float',
+        ...         'specs': {'domain': (0, 10)}}
         ... }
         >>> blueprint = Blueprint(blueprint_dict)
         >>> def constraint(x, y): return 2*x >= y

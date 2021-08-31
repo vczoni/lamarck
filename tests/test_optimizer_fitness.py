@@ -27,17 +27,14 @@ class testOptimizerFitness(unittest.TestCase):
     def setUp(self):
         blueprint_dict = {
             'min_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [6, 10]}},
+                'type': 'integer',
+                'specs': {'domain': [6, 10]}},
             'max_size': {
-                'type': 'numeric',
-                'specs': {'domain': int,
-                          'range': [8, 24]}},
+                'type': 'integer',
+                'specs': {'domain': [8, 24]}},
             'price': {
-                'type': 'numeric',
-                'specs': {'domain': float,
-                          'range': [100, 250]}},
+                'type': 'float',
+                'specs': {'domain': [100, 250]}},
             'brand': {
                 'type': 'categorical',
                 'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR']}},
@@ -212,15 +209,13 @@ class testOptimizerFitness(unittest.TestCase):
 
         blueprint_dict = {
             'x': {
-                'type': 'numeric',
+                'type': 'integer',
                 'specs': {
-                    'domain': int,
-                    'range': [10, 60]}},
+                    'domain': [10, 60]}},
             'y': {
-                'type': 'numeric',
+                'type': 'integer',
                 'specs': {
-                    'domain': int,
-                    'range': [1, 20]}},
+                    'domain': [1, 20]}},
         }
         blueprint = Blueprint(blueprint_dict)
         pop = blueprint.populate.deterministic(n=3)

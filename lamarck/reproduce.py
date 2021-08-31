@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 from lamarck import Blueprint
-from lamarck.gene import GeneCollection
+from lamarck.genes import GeneCollection
 from lamarck.utils import ParentOverloadException
 
 

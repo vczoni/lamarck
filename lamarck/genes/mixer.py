@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 
 
-class SexualReproductor:
+class GeneMixer:
     """
     Sexual reproduction class that combine parents's genes by "mixing" or "crossing" them.
 
@@ -116,4 +116,4 @@ class SexualReproductor:
         return tuple(get_mix(parent_genes) for _ in range(n_children))
 
 
-sexual_reproduction = SexualReproductor()
+gene_mixer = GeneMixer()

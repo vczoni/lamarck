@@ -1,6 +1,6 @@
 import unittest
 
-from lamarck.sexual import sexual_reproduction
+from lamarck.genes.mixer import gene_mixer
 
 
 class TestSexualReproduction(unittest.TestCase):
@@ -45,7 +45,7 @@ class TestSexualReproduction(unittest.TestCase):
             (1, 1), (1, 7),
             (7, 1), (7, 7)
         ]
-        actual = sexual_reproduction.scalar_mix(parent_genes)
+        actual = gene_mixer.scalar_mix(parent_genes)
         self.assertIn(actual, expected)
 
         # Test 2
@@ -55,7 +55,7 @@ class TestSexualReproduction(unittest.TestCase):
             (5, 8), (5, 5), (5, 2),
             (2, 8), (2, 5), (2, 2)
         ]
-        actual = sexual_reproduction.scalar_mix(parent_genes)
+        actual = gene_mixer.scalar_mix(parent_genes)
         self.assertIn(actual, expected)
 
     def test_categorical_reproduction_methods(self):
@@ -78,7 +78,7 @@ class TestSexualReproduction(unittest.TestCase):
             ('C', 'C', 'A'), ('C', 'C', 'C')
         ]
         for _ in range(n_tries):
-            actual = sexual_reproduction.scalar_mix(parent_genes, n_children=3)
+            actual = gene_mixer.scalar_mix(parent_genes, n_children=3)
             self.assertIn(actual, expected)
 
     def test_boolean_reproduction_methods(self):
@@ -101,7 +101,7 @@ class TestSexualReproduction(unittest.TestCase):
             (False, True), (False, False)
         ]
         for _ in range(n_tries):
-            actual = sexual_reproduction.scalar_mix(parent_genes)
+            actual = gene_mixer.scalar_mix(parent_genes)
             self.assertIn(actual, expected)
 
         # Test 2
@@ -111,7 +111,7 @@ class TestSexualReproduction(unittest.TestCase):
             (False, True), (False, False)
         ]
         for _ in range(n_tries):
-            actual = sexual_reproduction.scalar_mix(parent_genes)
+            actual = gene_mixer.scalar_mix(parent_genes)
             self.assertIn(actual, expected)
 
         # Test 3
@@ -123,7 +123,7 @@ class TestSexualReproduction(unittest.TestCase):
             (False, False, True), (False, False, False),
         ]
         for _ in range(n_tries):
-            actual = sexual_reproduction.scalar_mix(parent_genes, n_children=3)
+            actual = gene_mixer.scalar_mix(parent_genes, n_children=3)
             self.assertIn(actual, expected)
 
     def test_vectorial_reproduction_methods(self):
@@ -150,7 +150,7 @@ class TestSexualReproduction(unittest.TestCase):
             (2, 0, 2), (2, 0, 1), (2, 1, 2), (2, 1, 1)
         ]
         for _ in range(n_tries):
-            actuals = sexual_reproduction.vectorial_mix(parent_genes, n_children=2)
+            actuals = gene_mixer.vectorial_mix(parent_genes, n_children=2)
             for actual in actuals:
                 self.assertIn(actual, expected)
 
@@ -172,7 +172,7 @@ class TestSexualReproduction(unittest.TestCase):
             (7, 9, 2), (7, 9, 1), (7, 9, 6),
         ]
         for _ in range(n_tries):
-            actuals = sexual_reproduction.vectorial_mix(parent_genes, n_children=2)
+            actuals = gene_mixer.vectorial_mix(parent_genes, n_children=2)
             for actual in actuals:
                 self.assertIn(actual, expected)
 
@@ -192,7 +192,7 @@ class TestSexualReproduction(unittest.TestCase):
             (2, 0, 2, 4, 3)
         ]
         for _ in range(n_tries):
-            actuals = sexual_reproduction.vectorial_cross(parent_genes, n_children=2)
+            actuals = gene_mixer.vectorial_cross(parent_genes, n_children=2)
             for actual in actuals:
                 self.assertIn(actual, expected)
 
@@ -211,7 +211,7 @@ class TestSexualReproduction(unittest.TestCase):
             (0, 5, 6, 2, 4), (0, 5, 6, 1, 4), (0, 5, 0, 1, 4), (0, 3, 0, 1, 4)
         ]
         for _ in range(n_tries):
-            actuals = sexual_reproduction.vectorial_cross(parent_genes, n_children=2)
+            actuals = gene_mixer.vectorial_cross(parent_genes, n_children=2)
             for actual in actuals:
                 self.assertIn(actual, expected)
 
@@ -243,7 +243,7 @@ class TestSexualReproduction(unittest.TestCase):
             (2, 1, 0, 4, 3)
         ]
         for _ in range(n_tries):
-            actuals = sexual_reproduction.vectorial_cross_unique(parent_genes, n_children=2)
+            actuals = gene_mixer.vectorial_cross_unique(parent_genes, n_children=2)
             for actual in actuals:
                 self.assertIn(actual, expected)
 
@@ -262,6 +262,6 @@ class TestSexualReproduction(unittest.TestCase):
             (0, 5, 6, 2, 3), (0, 5, 6, 2, 3), (0, 5, 2, 3, 1), (0, 2, 3, 1, 4)
         ]
         for _ in range(n_tries):
-            actuals = sexual_reproduction.vectorial_cross_unique(parent_genes, n_children=2)
+            actuals = gene_mixer.vectorial_cross_unique(parent_genes, n_children=2)
             for actual in actuals:
                 self.assertIn(actual, expected)

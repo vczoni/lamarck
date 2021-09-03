@@ -84,7 +84,6 @@ class TestReproduction(unittest.TestCase):
         3. Assert if elitism lock works (that is if the number of n_parents and n_dispute end up
            creating a situation where the top n_parents are necessarily selected)
         """
-        self.opt.run_multithread()
         self.opt.apply_fitness.single_criteria(output='gear_sickness', objective='max')
         ranked_data = self.opt.datasets.fitness
         n_selection = int(round(len(ranked_data) * 0.5))
@@ -148,7 +147,7 @@ class TestReproduction(unittest.TestCase):
         self.opt.apply_fitness.single_criteria(output='gear_sickness', objective='max')
         ranked_data = self.opt.datasets.simulation
         n_selection = int(round(len(ranked_data) * 0.5))
-        ranked_pop = ranked_data.sort_values('Rank')[0:n_selection]
+        ranked_pop_data = ranked_data.sort_values('Rank')[0:n_selection]
 
         # Test 0
         expected_data = {
@@ -163,32 +162,32 @@ class TestReproduction(unittest.TestCase):
         expected = pd.Series(expected_data)
 
         # Test 0.1
-        offspring = self.populator.sexual(ranked_pop=ranked_pop,
+        offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                           n_offspring=1,
                                           n_dispute=2,
                                           n_parents=2,
                                           children_per_relation=1,
                                           rank_column='Rank',
                                           seed=42)
-        actual = offspring.dtypes
+        actual = offspring.data.dtypes
         assert_series_equal(expected, actual)
 
         # Test 0.2
-        offspring = self.populator.sexual(ranked_pop=ranked_pop,
+        offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                           n_offspring=10,
                                           n_dispute=2,
                                           n_parents=2,
                                           children_per_relation=2,
                                           rank_column='Rank',
                                           seed=42)
-        actual = offspring.dtypes
+        actual = offspring.data.dtypes
         assert_series_equal(expected, actual)
 
         n_trials = 500
         for _ in range(n_trials):
             # Test 1
             # Test 1.1
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=4,
                                               n_dispute=2,
                                               n_parents=2,
@@ -196,11 +195,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 4
-            actual = len(offspring)
+            actual = offspring.size
             self.assertEqual(expected, actual)
 
             # Test 1.2
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=5,
                                               n_dispute=2,
                                               n_parents=2,
@@ -208,11 +207,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 6
-            actual = len(offspring)
+            actual = offspring.size
             self.assertEqual(expected, actual)
 
             # Test 1.3
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=4,
                                               n_dispute=2,
                                               n_parents=2,
@@ -220,11 +219,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 6
-            actual = len(offspring)
+            actual = offspring.size
             self.assertEqual(expected, actual)
 
             # Test 1.4
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=5,
                                               n_dispute=2,
                                               n_parents=2,
@@ -232,11 +231,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 5
-            actual = len(offspring)
+            actual = offspring.size
             self.assertEqual(expected, actual)
 
             # Test 1.5
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=1,
                                               n_dispute=2,
                                               n_parents=2,
@@ -244,11 +243,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 3
-            actual = len(offspring)
+            actual = offspring.size
             self.assertEqual(expected, actual)
 
             # Test 1.6
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=1,
                                               n_dispute=2,
                                               n_parents=2,
@@ -256,12 +255,12 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 1
-            actual = len(offspring)
+            actual = offspring.size
             self.assertEqual(expected, actual)
 
             # Test 2
             # Test 2.1
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=4,
                                               n_dispute=2,
                                               n_parents=2,
@@ -269,11 +268,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 2
-            actual = len(offspring.drop_duplicates())
+            actual = offspring.unique().size
             self.assertGreaterEqual(actual, expected)
 
             # Test 2.2
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=4,
                                               n_dispute=2,
                                               n_parents=2,
@@ -281,11 +280,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 3
-            actual = len(offspring.drop_duplicates())
+            actual = offspring.unique().size
             self.assertGreaterEqual(actual, expected)
 
             # Test 2.3
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=4,
                                               n_dispute=2,
                                               n_parents=3,
@@ -293,11 +292,11 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 3
-            actual = len(offspring.drop_duplicates())
+            actual = offspring.unique().size
             self.assertGreaterEqual(actual, expected)
 
             # Test 2.4
-            offspring = self.populator.sexual(ranked_pop=ranked_pop,
+            offspring = self.populator.sexual(ranked_pop_data=ranked_pop_data,
                                               n_offspring=4,
                                               n_dispute=2,
                                               n_parents=3,
@@ -305,7 +304,7 @@ class TestReproduction(unittest.TestCase):
                                               rank_column='Rank',
                                               seed=42)
             expected = 4
-            actual = len(offspring.drop_duplicates())
+            actual = offspring.unique().size
             self.assertGreaterEqual(actual, expected)
 
     def test_asexual_offspring_generation(self):
@@ -322,11 +321,12 @@ class TestReproduction(unittest.TestCase):
             1.1. 1 child
             1.2. 5 children
             1.3. 10 children
+            1.4. 3 children
         """
         self.opt.apply_fitness.single_criteria(output='gear_sickness', objective='max')
         ranked_data = self.opt.datasets.simulation
         n_selection = int(round(len(ranked_data) * 0.5))
-        ranked_pop = ranked_data.sort_values('Rank')[0:n_selection]
+        ranked_pop_data = ranked_data.sort_values('Rank')[0:n_selection]
 
         # Test 0
         expected_data = {
@@ -341,64 +341,64 @@ class TestReproduction(unittest.TestCase):
         expected = pd.Series(expected_data)
 
         # Test 0.1
-        offspring = self.populator.asexual(ranked_pop=ranked_pop,
+        offspring = self.populator.asexual(ranked_pop_data=ranked_pop_data,
                                            n_offspring=1,
                                            n_mutated_genes=1,
                                            children_per_creature=1,
                                            rank_column='Rank',
                                            seed=42)
-        actual = offspring.dtypes
+        actual = offspring.data.dtypes
         assert_series_equal(expected, actual)
 
         # Test 0.2
-        offspring = self.populator.asexual(ranked_pop=ranked_pop,
+        offspring = self.populator.asexual(ranked_pop_data=ranked_pop_data,
                                            n_offspring=10,
                                            n_mutated_genes=1,
                                            children_per_creature=1,
                                            rank_column='Rank',
                                            seed=42)
-        actual = offspring.dtypes
+        actual = offspring.data.dtypes
         assert_series_equal(expected, actual)
 
         # Test 1.1
-        offspring = self.populator.asexual(ranked_pop=ranked_pop,
+        offspring = self.populator.asexual(ranked_pop_data=ranked_pop_data,
                                            n_offspring=1,
                                            n_mutated_genes=1,
                                            rank_column='Rank',
                                            seed=42)
         expected = 1
-        actual = len(offspring)
+        actual = offspring.size
         self.assertEqual(expected, actual)
 
         # Test 1.2
-        offspring = self.populator.asexual(ranked_pop=ranked_pop,
+        offspring = self.populator.asexual(ranked_pop_data=ranked_pop_data,
                                            n_offspring=5,
                                            n_mutated_genes=1,
                                            children_per_creature=1,
                                            rank_column='Rank',
                                            seed=42)
         expected = 5
-        actual = len(offspring)
+        actual = offspring.size
         self.assertEqual(expected, actual)
 
         # Test 1.3
-        offspring = self.populator.asexual(ranked_pop=ranked_pop,
+        offspring = self.populator.asexual(ranked_pop_data=ranked_pop_data,
                                            n_offspring=10,
                                            n_mutated_genes=1,
                                            children_per_creature=1,
                                            rank_column='Rank',
                                            seed=42)
         expected = 10
-        actual = len(offspring)
+        actual = offspring.size
         self.assertEqual(expected, actual)
 
         # Test 1.4
-        offspring = self.populator.asexual(ranked_pop=ranked_pop,
+        offspring = self.populator.asexual(ranked_pop_data=ranked_pop_data,
                                            n_offspring=1,
                                            n_mutated_genes=1,
                                            children_per_creature=3,
                                            rank_column='Rank',
                                            seed=42)
         expected = 3
-        actual = len(offspring)
+        actual = offspring.size
         self.assertEqual(expected, actual)

@@ -91,12 +91,12 @@ blueprint.add_constraint(w_plus_x_gt_3)
 
 ### 1.3. Population Creation
 ```python
-# creating population (they're just Pandas DataFrames!)
+# creating the population
 import pandas as pd
 
 popdet = blueprint.populate.deterministic(n=3)
 poprand = blueprint.populate.random(n=200)
-pop = pd.concat((popdet, poprand))
+pop = popdet + poprand
 
 pop.head()
 ```
@@ -192,7 +192,7 @@ from lamarck.optimizer import select_fittest
 
 ranked_pop = opt.datasets.simulation
 fittest_pop = select_fittest(ranked_pop=ranked_pop, p=0.5, rank_col='Rank')
-fittest_pop.head()
+fittest_pop.data.head()
 ```
 
 ### 3.2. Reproduce (Sexual Relations)
@@ -206,41 +206,49 @@ offspring = populator.sexual(ranked_pop=fittest_pop,
                              n_parents=2,
                              children_per_relation=2,
                              seed=42)
-offspring
+offspring.data.head()
 ```
 
-### 3.2. Mutate (Asexual Relations)
+### 3.3. Mutate (Asexual Relations)
 ```python
 mutated_offspring = populator.asexual(ranked_pop=fittest_pop,
                                       n_offspring=5,
+                                      n_mutated_genes=1,
+                                      children_per_creature=5,
                                       seed=42)
-mutated_offspring
+mutated_offspring.data.head()
 ```
 
 ## 4. Run Simulation
 
 ### 4.1. Configure simulation control vars
 ```python
-opt.config.max_generations = 50
+opt.config.max_generations = 20
 opt.config.max_stall = 5
 opt.config.p_selection = 0.5
-opt.config.p_tournament = 0.4
 opt.config.n_dispute = 2
 opt.config.n_parents = 2
-opt.config.n_children_per_relation = 2
-opt.config.p_mutation= 0.05
+opt.config.children_per_relation = 2
+opt.config.p_mutation = 0.1
+opt.config.max_mutated_genes = 1
+opt.config.children_per_mutation = 1
+opt.config.multithread = True
+opt.config.max_workers = None
 ```
 
 ### 4.2. Define objectives and selection criteria for the simulations
+#### 4.2.1 Single objective
 ```python
-# Single objective
-optpop = opt.simulate.single_criteria(output='power', objective='max')
+bestopt = opt.simulate.single_criteria(output='power', objective='max')
+```
 
-# Multi objective
-## Ranked
-optpop = opt.simulate.multi_criteria_ranked(outputs=['power', 'diff'],
-                                            objectives=['max', 'min'])
-## Pareto
-optpop = opt.simulate.multi_criteria_pareto(outputs=['power', 'diff'],
-                                            objectives=['max', 'min'])
+#### 4.2.2 Multi objective - Ranked objectives
+```python
+bestopt = opt.simulate.multi_criteria.ranked(outputs=['power', 'diff'],
+                                             objectives=['max', 'min'])
+```
+#### 4.2.3 Multi objective - Pareto fronts
+```python
+bestopt = opt.simulate.multi_criteria.pareto(outputs=['power', 'diff'],
+                                             objectives=['max', 'min'])
 ```

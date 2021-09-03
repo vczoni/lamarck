@@ -1,4 +1,4 @@
-from lamarck.blueprint import BlueprintBuilder, Blueprint
+from lamarck.population import BlueprintBuilder, Blueprint
 from lamarck.optimizer import Optimizer
 
 

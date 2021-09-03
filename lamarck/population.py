@@ -7,7 +7,65 @@ import pandas as pd
 import numpy as np
 
 from lamarck.genes import GeneCollection
-from lamarck.utils import VectorialOverloadException
+from lamarck.utils import hash_cols, VectorialOverloadException
+
+
+class Population:
+    """
+    Population class.
+    """
+    data: pd.DataFrame
+    blueprint: Blueprint
+
+    def __init__(self, data: pd.DataFrame, blueprint: Blueprint):
+        self.data = data
+        self.blueprint = blueprint
+
+    def __len__(self):
+        return self.size
+
+    def __add__(self, other):
+        return self.merge(other)
+
+    @property
+    def size(self) -> int:
+        return len(self.data)
+
+    def hash_index(self) -> pd.DataFrame:
+        """
+        Returns the Population Dataset (which is a Pandas DataFrame) with hashed index.
+        """
+        hashed_index = hash_cols(self.data)
+        return self.data.set_index(hashed_index)
+
+    def copy(self) -> Population:
+        """
+        Returns a new Population with the same data as this one.
+        """
+        new_data = self.data.copy()
+        return Population(new_data, self.blueprint.copy())
+
+    def merge(self, pop: Population) -> Population:
+        """
+        Returns a new Population by combines data from other population.
+
+        Example
+        -------
+        new_pop = pop1.merge(pop2)
+
+        Alternative
+        -----------
+        new_pop = pop1 + pop2
+        """
+        new_data = pd.concat((self.data, pop.data)).reset_index(drop=True)
+        return Population(new_data, self.blueprint.copy())
+
+    def unique(self) -> Population:
+        """
+        Returns a new population without duplicated Creatures.
+        """
+        new_data = self.data.drop_duplicates()
+        return Population(new_data, self.blueprint.copy())
 
 
 class BlueprintBuilder:
@@ -359,7 +417,8 @@ class Blueprint:
             data = itertools.product(*ranges)
             columns = list(self._bp._dict)
             data = pd.DataFrame(data=data, columns=columns)
-            return self._bp.apply_constraints(data).drop_duplicates()
+            pop_data = self._bp.apply_constraints(data).drop_duplicates()
+            return Population(pop_data, self._bp)
 
         def random(self, n: int, seed: int | None = None) -> pd.DataFrame:
             """
@@ -404,7 +463,8 @@ class Blueprint:
             data_dict = {gene: self._bp.genes[gene].get_random(n, seed).tolist()
                          for gene in self._bp._dict}
             data = pd.DataFrame(data_dict)
-            return self._bp.apply_constraints(data).drop_duplicates()
+            pop_data = self._bp.apply_constraints(data).drop_duplicates()
+            return Population(pop_data, self._bp)
 
     _dict: dict
     _constraints: list
@@ -432,6 +492,13 @@ class Blueprint:
         Show blueprint specs.
         """
         print(self)
+
+    def copy(self) -> Blueprint:
+        """
+        Returns copy of this blueprint.
+        """
+        bp_dict = deepcopy(self._dict)
+        return Blueprint(bp_dict)
 
     def reset_constraints(self) -> None:
         """

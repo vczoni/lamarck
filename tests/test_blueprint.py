@@ -67,7 +67,7 @@ class TestBlueprint(unittest.TestCase):
         items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
-        actual = blueprint.populate.deterministic(n=2)
+        actual = blueprint.populate.deterministic(n=2).data
         assert_frame_equal(expected, actual)
         self.assertEqual(len(actual), 128)
 
@@ -84,7 +84,7 @@ class TestBlueprint(unittest.TestCase):
         items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
-        actual = blueprint.populate.deterministic(n=3)
+        actual = blueprint.populate.deterministic(n=3).data
         assert_frame_equal(expected, actual)
         self.assertEqual(len(actual), 1458)
 
@@ -112,7 +112,7 @@ class TestBlueprint(unittest.TestCase):
             'groove': 6,
             'is_loud': 2
         }
-        actual = blueprint.populate.deterministic(n=n_dict)
+        actual = blueprint.populate.deterministic(n=n_dict).data
         assert_frame_equal(expected, actual)
         self.assertEqual(len(actual), 9720)
 
@@ -148,13 +148,13 @@ class TestBlueprint(unittest.TestCase):
 
         # Test 1
         expected = get_expected_data(1000, 42)
-        actual = blueprint.populate.random(n=1000, seed=42)
+        actual = blueprint.populate.random(n=1000, seed=42).data
         assert_frame_equal(expected, actual)
         self.assertEqual(len(actual), 1000)
 
         # Test 2
         expected = get_expected_data(20000, 123)
-        actual = blueprint.populate.random(n=20000, seed=123)
+        actual = blueprint.populate.random(n=20000, seed=123).data
         assert_frame_equal(expected, actual)
         self.assertEqual(len(actual), 20000)
 
@@ -177,14 +177,14 @@ class TestBlueprint(unittest.TestCase):
         4. If is_loud then price > 200
         """
         blueprint = Blueprint(self.blueprint_dict)
-        data = blueprint.populate.deterministic(3)
+        data = blueprint.populate.deterministic(3).data
 
         # Constraint 1
         f = data['min_size'] < data['max_size']
         expected = data[f]
         def constraint(min_size, max_size): return min_size < max_size
         blueprint.add_constraint(constraint)
-        actual = blueprint.populate.deterministic(3)
+        actual = blueprint.populate.deterministic(3).data
         assert_frame_equal(expected, actual)
 
         # Constraint 2
@@ -192,7 +192,7 @@ class TestBlueprint(unittest.TestCase):
         expected = data[f]
         def constraint(min_size, max_size): return (min_size + max_size) <= 32
         blueprint.add_constraint(constraint)
-        actual = blueprint.populate.deterministic(3)
+        actual = blueprint.populate.deterministic(3).data
         assert_frame_equal(expected, actual)
 
         # Constraint 3
@@ -210,7 +210,7 @@ class TestBlueprint(unittest.TestCase):
                 flag = (min_size * max_size) <= 100
             return flag
         blueprint.add_constraint(constraint)
-        actual = blueprint.populate.deterministic(3)
+        actual = blueprint.populate.deterministic(3).data
         assert_frame_equal(expected, actual)
 
         # Constraint 4
@@ -218,5 +218,5 @@ class TestBlueprint(unittest.TestCase):
         expected = data[f]
         def constraint(is_loud, price): return price > 200 if is_loud else True
         blueprint.add_constraint(constraint)
-        actual = blueprint.populate.deterministic(3)
+        actual = blueprint.populate.deterministic(3).data
         assert_frame_equal(expected, actual)

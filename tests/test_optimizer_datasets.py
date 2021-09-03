@@ -118,8 +118,8 @@ class testOptimizerDatasets(unittest.TestCase):
         assert_frame_equal(expected, actual)
 
         # history
-        expected = pd.DataFrame(index=expected_index)
-        actual = opt.datasets.history.head()
+        expected = pd.DataFrame(columns=['generation'], dtype=int)
+        actual = opt.datasets.history
         assert_frame_equal(expected, actual)
 
         # simulation

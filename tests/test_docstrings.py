@@ -1,4 +1,4 @@
 import doctest
-from lamarck import blueprint
+from lamarck import population
 
-doctest.testmod(blueprint)
+doctest.testmod(population)

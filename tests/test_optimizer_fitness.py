@@ -124,7 +124,7 @@ class testOptimizerFitness(unittest.TestCase):
         """
         popdet = self.blueprint.populate.deterministic(n=3)
         poprnd = self.blueprint.populate.random(n=1000, seed=42)
-        pop = pd.concat((popdet, poprnd)).reset_index(drop=True)
+        pop = popdet + poprnd
         opt = Optimizer(population=pop, process=self.process)
         ascmap = {'min': True, 'max': False}
 

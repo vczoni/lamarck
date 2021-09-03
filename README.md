@@ -19,16 +19,15 @@ The Process must be a Python `function` with one or more input parameters and mu
     - **Categorical**
     - **Vectorial**
     - **Boolean**
-- **Versatile process modelling** (it's just a normal Python function)
+- **Versatile process modelling** (it's just a standard Python function)
 - Optimization for **Single** or **Multiple Objectives**
 - Simulation control
     - Maximum **number of Generations**
-    - Maximum **Stall** (to halt if the simulation is not finding better solutions)
+    - Maximum **Stall** (halt if the simulation is not finding better solutions)
+    - **Multithreading**
     - **Mutation** probability
     - **Selection** proportion
 - **Reproduction** control
-    - by **Tournament**
-    - by **Elitism**
 - **Constraint** addition
 - **Visualization** Tools
     - Variable pair
@@ -40,7 +39,6 @@ The Process must be a Python `function` with one or more input parameters and mu
 
 ```python
 import numpy as np
-import pandas as pd
 from lamarck import BlueprintBuilder, Optimizer
 
 # Defining the Process
@@ -51,43 +49,41 @@ def my_process(x, y):
 # Building the Blueprint
 builder = BlueprintBuilder()
 # Adding gene specs
-builder.add_numeric_gene(name='x',
-                         domain=float,
-                         range=[0, 12*np.pi])
+builder.add_float_gene(name='x',
+                       domain=(0, 12*np.pi))
 
-builder.add_numeric_gene(name='y',
-                         domain=float,
-                         range=[0, 12*np.pi])
+builder.add_float_gene(name='y',
+                       domain=(0, 12*np.pi))
 
 blueprint = builder.get_blueprint()
 
 # Building the Population
 popdet = blueprint.populate.deterministic(n=20)
 poprnd = blueprint.populate.random(n=600)
-pop = pd.concat((popdet, poprnd)).reset_axis(drop=True)
+pop = popdet + poprnd
 
 # Setting up the Optimizer
-opt = Optimizer(pop, process)
+opt = Optimizer(pop, my_process)
 
 # Simulate (this will return an optimized population)
-optpop = opt.simulate.single_objective(output='val', objective='max')
+bestopt = opt.simulate.single_criteria(output='val', objective='max')
 
 # Check the best solution
-print(optpop.get_creature.best())
+print(bestopt.datasets.get_best_criature(outputs='val', objectives='max'))
 # [Creature <###id###> - genome: {'x': 33.0503879157277, 'y': 33.075952331006285}]
 
 # So it found x=33.05 and y=33.08 as the best Solution.
 ```
 
 ### Basic Example #2 - Travelling Salesman
-(This one uses the module `docs/examples/toymodules/salesman.py`)
+(Using the module from the `examples` folder: *`docs/examples/toymodules/salesman.py`*)
 ```python
 from toymodules.salesman import TravelSalesman
 from lamarck import BlueprintBuilder, Optimizer
 
 # Defining the Process
 # In order to persist the TravelSalesman object for the Process, we need to
-# embed it in a function 
+# wrap it in a function 
 def process_deco(travel_salesman):
     def wrapper(route):
         return {'distance': travel_salesman.get_route_distance(route)}
@@ -98,13 +94,13 @@ def process_deco(travel_salesman):
 # of cities that the salesman should vist)
 number_of_cities = 20
 cities = tuple(range(number_of_cities))
-builder.genome_creator.add_vectorial_gene(name='route',
-                                          domain=cities,
-                                          replace=False,
-                                          length=number_of_cities)
+builder.add_set_gene(name='route',
+                     domain=cities,
+                     length=number_of_cities)
 
 # Creating the Population (5000 randomly generated 'route's)
-pop = builder.populate.random(n=5000)
+blueprint = builder.get_blueprint()
+pop = blueprint.populate.random(n=5000)
 
 # Setting up the Environment
 trav_salesman = TravelSalesman(number_of_cities, seed=123)
@@ -113,67 +109,80 @@ process = process_deco(trav_salesman)
 # Setting up the Optimizer
 opt = Optimizer(population=pop, process=process)
 
-# Activate MultiThreading (may speed things up)
+# Activate MultiThreading (for better performance)
 opt.config.multithread = True
 
 # Simulate (this will return an optimized population)
-optpop = opt.simulate.single_objective(output='distance', objective='min')
+optpop = opt.simulate.single_criteria(output='distance', objective='min')
 
 # Check the best solution
-print(optpop.get_creature.best())
-# [Creature <###id###> - genome: {'route': (1, 19, 4, 17, 14, 8, 5, 15, 10, 11, 2, 9, 18, 3, 0, 6, 13, 7, 12, 16)]
+print(bestopt.datasets.get_best_criature(outputs='distance', objectives='min'))
+# route: (16, 12, 7, 6, 13, 11, 0, 3, 18, 9, 17, 4, 2, 14, 10, 15, 5, 8, 19, 1) 
+# distance: 319.539815
 
 # So The best Sequence it found (minimum 'distance' travelled) is:
-# (1, 19, 4, 17, 14, 8, 5, 15, 10, 11, 2, 9, 18, 3, 0, 6, 13, 7, 12, 16)
+# (16, 12, 7, 6, 13, 11, 0, 3, 18, 9, 17, 4, 2, 14, 10, 15, 5, 8, 19, 1)
 
 # Just so you know, there are 1.216.451.004.088.320.000 different Routes in
 # this problem (of 20 cities that are all interconnected), so THE best solution
 # is REALLY HARD to find but the algorithm will get very close very fast
 ```
 
+### Simulation Configs
+
 ### Genome Specifications
 
-1. Numeric
-    1.1. Domain: `type {int, float}`
-    1.2. Range: `list or tuple: [min, max] or (min, max)`
+1. Scalar
+
+    1. Integer
+        1. Name: `str`
+        2. Domain: `list or tuple: [min, max] or (min, max)`
+
+    2. Float
+        1. Name: `str`
+        2. Domain: `list or tuple: [min, max] or (min, max)`
+
+    3. Categorical
+        1. Name: `str`
+        2. Domain: `list or tuple`
+    
+    4. Boolean
+        1. Name: `str`
 >
 
-2. Categorical
-    2.1. Domain: `list or tuple`
->
+2. Vectorial
+    
+    1. Array
+        1. Name: `str`
+        2. Domain: `list or tuple`
+        3. Length: `int`
+    
+    1. Set
+        1. Name: `str`
+        2. Domain: `list or tuple`
+        3. Length: `int`
 
-3. Vectorial
-    3.1. Domain: `list or tuple`
-    3.2. Replacement: `bool`
-    3.3. Length: `int`
->
-
-4. Boolean
->
 #### Genome Example
 ```python
 from lamarck import Blueprint
 
 genome_blueprint_dict = {
     'num_var': {
-        'type': 'numeric',
-        'domain': int,
-        'range': [0, 10] # [min, max]
+        'type': 'integer',
+        'domain':  (0, 10) # [min, max]
     },
     'cat_var': {
         'type': 'categorical',
-        'domain': ['A', 'B', 'C', 'D', 'E'],
+        'domain': ('A', 'B', 'C', 'D', 'E'),
     },
     'vec_var': {
-        'type': 'vectorial',
-        'domain': [0, 1, 2, 3, 4, 5],
-        'replacement': False,
+        'type': 'set',
+        'domain': (0, 1, 2, 3, 4, 5),
         'length': 3, # lenght CANNOT be greater than the domain's length
     },
     'vec_var_replace': {
-        'type': 'vectorial',
-        'domain': ['i', 'j', 'k'],
-        'replacement': True,
+        'type': 'array',
+        'domain': ('i', 'j', 'k'),
         'length': 5, # lenght CAN be greater than the domain's length because of the replacement
     },
     'bool_var': {

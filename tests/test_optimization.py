@@ -37,14 +37,14 @@ class TestOptimization(unittest.TestCase):
         opt = Optimizer(pop, my_process)
 
         # Simulate (this will return an optimized population)
-        bestopt = opt.simulate.single_criteria(output='val', objective='max')
+        opt.simulate.single_criteria(output='val', objective='max')
 
         # Check the best solution
-        print(bestopt.datasets.get_best_criature(outputs='val', objectives='max'))
+        print(opt.datasets.get_best_criature(outputs='val', objectives='max'))
 
         # Assertions
-        self.assertIsInstance(bestopt, Optimizer)
-        self.assertIsInstance(bestopt.population, Population)
+        self.assertIsInstance(opt, Optimizer)
+        self.assertIsInstance(opt.population, Population)
 
     def test_readme_salesman_example(self):
         builder = BlueprintBuilder()
@@ -81,11 +81,11 @@ class TestOptimization(unittest.TestCase):
         opt.config.multithread = True
 
         # Simulate (this will return an optimized population)
-        bestopt = opt.simulate.single_criteria(output='distance', objective='min')
+        opt.simulate.single_criteria(output='distance', objective='min')
 
         # Check the best solution
-        print(bestopt.datasets.get_best_criature(outputs='distance', objectives='min'))
+        print(opt.datasets.get_best_criature())
 
         # Assertions
-        self.assertIsInstance(bestopt, Optimizer)
-        self.assertIsInstance(bestopt.population, Population)
+        self.assertIsInstance(opt, Optimizer)
+        self.assertIsInstance(opt.population, Population)

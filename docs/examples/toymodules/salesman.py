@@ -69,3 +69,4 @@ class TravelSalesman:
             .plot.scatter('x', 'y', color='lime', ax=ax)
         ax = self.coord_df[end:end+1]\
             .plot.scatter('x', 'y', color='r', ax=ax)
+        return ax

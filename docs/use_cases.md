@@ -104,9 +104,9 @@ pop.head()
 |---:|----:|----:|:----|:----------------|:-------|
 |  0 |   8 |   0 | A   | (0, 1, 2, 3, 4) | False  |
 |  1 |   8 |   0 | A   | (0, 1, 2, 3, 4) | True   |
-|  2 |   8 |   0 | A   | (2, 1, 4, 3, 0) | False  |
-|  3 |   8 |   0 | A   | (2, 1, 4, 3, 0) | True   |
-|  4 |   8 |   0 | A   | (4, 3, 2, 1, 0) | False  |
+|  2 |   8 |   0 | A   | (0, 4, 3, 2, 1) | False  |
+|  3 |   8 |   0 | A   | (0, 4, 3, 2, 1) | True   |
+|  4 |   8 |   0 | A   | (1, 4, 3, 2, 0) | False  |
 
 ## 2. Setting the Process
 ### 2.1. Python Function
@@ -132,13 +132,14 @@ Will run the function for each gene in the current population and return its Out
 opt.run(return_data=True)
 opt.datasets.results.head()
 ```
-| id                   |   power |   diff |
-|:---------------------|--------:|-------:|
-| 5b3817cc550623ddfa...|      37 |     15 |
-| 3fd076410604c57dbd...|      37 |      8 |
-| bd2b6f57b8ad1b57e9...|       9 |     15 |
-| c4db4ccc569b41bd7a...|       9 |      8 |
-| 2e9ca363a8f09621ac...|      12 |     15 |
+| id                     |   power |   diff |
+|:-----------------------|--------:|-------:|
+| 5b3817cc550623ddfa7a...|      66 |     -2 |
+| 3fd076410604c57dbd90...|      66 |      8 |
+| bd2b6f57b8ad1b57e9dd...|      68 |     -2 |
+| c4db4ccc569b41bd7a8a...|      68 |      8 |
+| 2e9ca363a8f09621acaf...|      90 |     -2 |
+
 
 ### 2.4. Run some Fitness Criteria
 Will apply the selected criteria to the results data and return a Pandas DataFrame.
@@ -147,14 +148,13 @@ Will apply the selected criteria to the results data and return a Pandas DataFra
 opt.apply_fitness.single_criteria(output='power', objective='max')
 opt.datasets.fitness.head()
 ```
-| id                   |   Criteria |   Rank |
-|:---------------------|-----------:|-------:|
-| 5b3817cc550623ddfa...|         37 |   1850 |
-| 3fd076410604c57dbd...|         37 |   1850 |
-| bd2b6f57b8ad1b57e9...|          9 |   2079 |
-| c4db4ccc569b41bd7a...|          9 |   2079 |
-| 2e9ca363a8f09621ac...|         12 |   2042 |
-
+| id                     |   Criteria |   Rank |
+|:-----------------------|-----------:|-------:|
+| 5b3817cc550623ddfa7a...|         66 |   1575 |
+| 3fd076410604c57dbd90...|         66 |   1575 |
+| bd2b6f57b8ad1b57e9dd...|         68 |   1526 |
+| c4db4ccc569b41bd7a8a...|         68 |   1526 |
+| 2e9ca363a8f09621acaf...|         90 |   1176 |
 #### 2.4.2. Multi Objective
 ##### 2.4.2.1. Ranked Objectives
 ```python
@@ -162,13 +162,13 @@ opt.apply_fitness.multi_criteria_ranked(outputs=['power', 'diff'],
                                         objectives=['max', 'min'])
 opt.datasets.fitness.head()
 ```
-| id                   |   Criteria1 |   Criteria2 |   Rank |
-|:---------------------|------------:|------------:|-------:|
-| 5b3817cc550623ddfa...|          37 |          15 |   1861 |
-| 3fd076410604c57dbd...|          37 |           8 |   1855 |
-| bd2b6f57b8ad1b57e9...|           9 |          15 |   2084 |
-| c4db4ccc569b41bd7a...|           9 |           8 |   2079 |
-| 2e9ca363a8f09621ac...|          12 |          15 |   2052 |
+| id                     |   Criteria1 |   Criteria2 |   Rank |
+|:-----------------------|------------:|------------:|-------:|
+| 5b3817cc550623ddfa7a...|          66 |          -2 |   1575 |
+| 3fd076410604c57dbd90...|          66 |           8 |   1585 |
+| bd2b6f57b8ad1b57e9dd...|          68 |          -2 |   1526 |
+| c4db4ccc569b41bd7a8a...|          68 |           8 |   1534 |
+| 2e9ca363a8f09621acaf...|          90 |          -2 |   1176 |
 
 ##### 2.4.2.2. Pareto Fronts
 ```python
@@ -176,13 +176,14 @@ opt.apply_fitness.multi_criteria_pareto(outputs=['power', 'diff'],
                                         objectives=['max', 'min'])
 opt.datasets.fitness.head()
 ```
-| id                   |   Front |     Crowd |   Rank |
-|:---------------------|--------:|----------:|-------:|
-| 5b3817cc550623ddfa...|      66 | 0.265356  |   1446 |
-| 3fd076410604c57dbd...|      66 | 0         |   1716 |
-| bd2b6f57b8ad1b57e9...|      66 | 1.81679   |   1083 |
-| c4db4ccc569b41bd7a...|      66 | 0         |   1716 |
-| 2e9ca363a8f09621ac...|      66 | 0.0679169 |   1647 |
+| id                     |   Front |   Crowd |   Rank |
+|:-----------------------|--------:|--------:|-------:|
+| 5b3817cc550623ddfa7a...|      10 |       0 |   1366 |
+| 3fd076410604c57dbd90...|      10 |       0 |   1366 |
+| bd2b6f57b8ad1b57e9dd...|      10 |       1 |    170 |
+| c4db4ccc569b41bd7a8a...|      10 |       0 |   1366 |
+| 2e9ca363a8f09621acaf...|      10 |       0 |   1366 |
+
 
 ## 3. Reproduction
 
@@ -194,6 +195,13 @@ ranked_pop = opt.datasets.simulation
 fittest_pop = select_fittest(ranked_pop=ranked_pop, p=0.5, rank_col='Rank')
 fittest_pop.data.head()
 ```
+| id       |   w |        x | y   | z               | flag   |   power |   diff |   Front |    Crowd |   Rank |
+|:---------|----:|---------:|:----|:----------------|:-------|--------:|-------:|--------:|---------:|-------:|
+| 26443c...|  15 | 10       | A   | (1, 4, 3, 2, 0) | True   | 240     |      5 |       1 | inf      |      1 |
+| 5c70c2...|   8 |  6       | A   | (1, 4, 3, 2, 0) | False  | 138     |     -2 |       1 | inf      |      1 |
+| ae0979...|  11 |  9.56247 | A   | (1, 2, 0, 4, 3) | False  | 187.187 |      1 |       1 |  42      |      3 |
+| f704a6...|   9 |  8       | A   | (1, 4, 3, 2, 0) | False  | 162     |     -1 |       1 |  34      |      4 |
+| 7a07d9...|  10 |  8       | A   | (1, 4, 3, 2, 0) | False  | 170     |      0 |       1 |  27.1872 |      5 |
 
 ### 3.2. Reproduce (Sexual Relations)
 ```python
@@ -208,6 +216,15 @@ offspring = populator.sexual(ranked_pop=fittest_pop,
                              seed=42)
 offspring.data.head()
 ```
+|    |   w |       x | y   | z               | flag   |
+|---:|----:|--------:|:----|:----------------|:-------|
+|  0 |  10 | 1.54473 | C   | (0, 2, 3, 1, 4) | False  |
+|  1 |  10 | 1.54473 | C   | (0, 2, 1, 3, 4) | False  |
+|  2 |  12 | 2       | C   | (0, 1, 2, 3, 4) | False  |
+|  3 |  12 | 2       | B   | (2, 1, 0, 3, 4) | False  |
+|  4 |  13 | 8       | C   | (2, 0, 3, 4, 1) | False  |
+|  5 |  10 | 2.70767 | C   | (2, 4, 3, 0, 1) | False  |
+
 
 ### 3.3. Mutate (Asexual Relations)
 ```python
@@ -218,6 +235,14 @@ mutated_offspring = populator.asexual(ranked_pop=fittest_pop,
                                       seed=42)
 mutated_offspring.data.head()
 ```
+|    |   w |       x | y   | z               | flag   |
+|---:|----:|--------:|:----|:----------------|:-------|
+|  0 |   8 | 7.08767 | B   | (2, 1, 4, 3, 0) | False  |
+|  1 |   8 | 7.68636 | B   | (4, 3, 0, 2, 1) | False  |
+|  2 |   8 | 1.16158 | B   | (2, 1, 4, 3, 0) | False  |
+|  3 |   8 | 7.68636 | B   | (2, 4, 0, 1, 3) | False  |
+|  4 |   8 | 7.68636 | B   | (2, 1, 4, 3, 0) | True   |
+
 
 ## 4. Run Simulation
 

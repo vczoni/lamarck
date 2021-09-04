@@ -25,6 +25,9 @@ class Optimizer:
     Optimizer Structure
     -------------------
     Optimizer
+    ├── TempData as temp_data
+    │   ├── outputs
+    │   └── objectives
     ├── population
     ├── process: user defined function
     ├── Datasets as datasets
@@ -33,7 +36,6 @@ class Optimizer:
     │   ├── fitness: criteria data
     │   ├── history: historic fitness from multiple generations
     │   └── simulation: concatenation of :population:, :results: and :fitness:
-    ├── copy()
     ├── run()
     ├── run_multithread()
     ├── Criteria as apply_fitness
@@ -59,6 +61,11 @@ class Optimizer:
             ├── ranked()
             └── pareto()
     """
+    @dataclass
+    class TempData:
+        outputs: list[str] | str | None = None
+        objectives: list[str] | str | None = None
+
     class Datasets:
         """
         Pertinent datasets for the simulation control.
@@ -129,13 +136,22 @@ class Optimizer:
         def add_history_data(self, history: pd.DataFrame, generation: int = 0) -> None:
             self.history = pd.concat((self.history, history.assign(generation=generation)))
 
-        def get_best_criature(self, outputs: list | str, objectives: list | str) -> pd.Series:
+        def get_best_criature(self,
+                              outputs: list | str | None = None,
+                              objectives: list | str | None = None) -> pd.Series:
             """
             Get the best creature from the simulation results by selecting the columns to sort
             and the objectives ('min' or 'max') to determine how to sort them.
+
+            If arguments are `None`, the temp 'outputs' and 'objectives' from this Optimizer
+            object will be used.
             """
+            if outputs is None:
+                outputs = self._opt.temp_data.outputs
             if isinstance(outputs, str):
                 outputs = [outputs]
+            if objectives is None:
+                objectives = self._opt.temp_data.objectives
             if isinstance(objectives, str):
                 objectives = [objectives]
             ascending = [objective_ascending_map[objective] for objective in objectives]
@@ -177,6 +193,7 @@ class Optimizer:
             -------
             self.datasets.results DataFrame
             """
+            self._opt._update_temp_data(output, objective)
             self._opt.rank_calculator.update(self._opt.datasets.results, output)
             rank = self._opt.rank_calculator.single(objective)
             concat_data = (
@@ -211,6 +228,7 @@ class Optimizer:
             -------
             self.datasets.results DataFrame
             """
+            self._opt._update_temp_data(outputs, objectives)
             self._opt.rank_calculator.update(self._opt.datasets.results, outputs)
             rank = self._opt.rank_calculator.ranked(objectives)
             concat_data = (
@@ -248,6 +266,7 @@ class Optimizer:
             -------
             self.datasets.results DataFrame
             """
+            self._opt._update_temp_data(outputs, objectives)
             self._opt.rank_calculator.update(self._opt.datasets.results, outputs)
             fronts = self._opt.rank_calculator.pareto_fronts(objectives)
             crowd = self._opt.rank_calculator.pareto_crowds(fronts)
@@ -260,20 +279,6 @@ class Optimizer:
     class SimulationConfig:
         """
         Simulation configurations.
-
-        Configs
-        -------
-        - max_generations
-        - max_stall
-        - p_selection
-        - n_dispute
-        - n_parents
-        - children_per_relation
-        - p_mutation
-        - max_mutated_genes
-        - children_per_mutation
-        - multithread
-        - max_workers
         """
         max_generations: int = 20
         max_stall: int = 5
@@ -286,6 +291,7 @@ class Optimizer:
         children_per_mutation: int = 1
         multithread: bool = True
         max_workers: int | None = None
+        peek_champion_variables: list | None = None
 
     class Simulator:
         """
@@ -339,7 +345,7 @@ class Optimizer:
                        outputs: list[str],
                        objectives: list[str],
                        quiet: bool = False,
-                       seed: int | None = None) -> Optimizer:
+                       seed: int | None = None) -> None:
                 """
                 Run optimization with multiple objectives, selecting the best of them with the
                 Ranked Criteria.
@@ -354,21 +360,20 @@ class Optimizer:
                 :seed:          Random Number Generator control (default: None).
                 """
                 np.random.seed(seed)
+                self._opt._update_temp_data(outputs, objectives)
 
                 def apply_fitness(opt: Optimizer) -> None:
                     return opt.apply_fitness.multi_criteria_ranked(outputs=outputs,
                                                                    objectives=objectives)
 
                 check_stall = self._stall_criteria(outputs, objectives)
-
-                opt = self._opt.copy()
-                return optimize(opt, apply_fitness, check_stall, quiet)
+                optimize(self._opt, apply_fitness, check_stall, quiet)
 
             def pareto(self,
                        outputs: list[str],
                        objectives: list[str],
                        quiet: bool = False,
-                       seed: int | None = None) -> Optimizer:
+                       seed: int | None = None) -> None:
                 """
                 Run optimization with multiple objectives, selecting the best of them with the
                 Pareto Criteria.
@@ -383,15 +388,14 @@ class Optimizer:
                 :seed:          Random Number Generator control (default: None).
                 """
                 np.random.seed(seed)
+                self._opt._update_temp_data(outputs, objectives)
 
                 def apply_fitness(opt: Optimizer) -> None:
                     return opt.apply_fitness.multi_criteria_pareto(outputs=outputs,
                                                                    objectives=objectives)
 
                 check_stall = self._stall_criteria(outputs, objectives)
-
-                opt = self._opt.copy()
-                return optimize(opt, apply_fitness, check_stall, quiet)
+                optimize(self._opt, apply_fitness, check_stall, quiet)
 
         _opt: Optimizer
         multi_criteria: MultiCriteriaSimulations
@@ -404,7 +408,7 @@ class Optimizer:
                             output: str,
                             objective: str,
                             quiet: bool = False,
-                            seed: int | None = None) -> Optimizer:
+                            seed: int | None = None) -> None:
             """
             Run optimization with a single objective.
 
@@ -416,6 +420,7 @@ class Optimizer:
             :seed:      Random Number Generator control (default: None).
             """
             np.random.seed(seed)
+            self._opt._update_temp_data(output, objective)
 
             def apply_fitness(opt: Optimizer) -> None:
                 return opt.apply_fitness.single_criteria(output=output, objective=objective)
@@ -430,8 +435,7 @@ class Optimizer:
                     stall_condition = new_best <= old_best
                 return n_stall+1 if stall_condition else 0
 
-            opt = self._opt.copy()
-            return optimize(opt, apply_fitness, check_stall, quiet)
+            optimize(self._opt, apply_fitness, check_stall, quiet)
 
     population: Population
     process: Callable[[], dict]
@@ -442,6 +446,7 @@ class Optimizer:
     simulate: Simulator
 
     def __init__(self, population: Population, process: Callable[[], dict]):
+        self.temp_data = self.TempData()
         self.process = process
         self.set_population(population)
         self.apply_fitness = self.Criteria(self)
@@ -449,23 +454,24 @@ class Optimizer:
         self.config = self.SimulationConfig()
         self.simulate = self.Simulator(self)
 
+    def _update_temp_data(self, outputs: list[str] | str, objectives: list[str] | str):
+        self.temp_data.outputs = outputs
+        self.temp_data.objectives = objectives
+
+    def clear_datasets(self):
+        self.datasets = self.Datasets(self)
+
     def set_population(self, population: Population) -> None:
         self.population = population
-        self.datasets = self.Datasets(self)
+        self.clear_datasets()
+
+    def reset_population_data(self, data: pd.DataFrame) -> None:
+        self.population.reset_data(data)
+        self.clear_datasets()
 
     def update_population(self, population: Population) -> None:
         self.population = population
         self.datasets.update_data()
-
-    def copy(self) -> Optimizer:
-        """
-        Create a copy of this instance.
-        """
-        new_opt = Optimizer(self.population.copy(), self.process)
-        new_opt.datasets.results = self.datasets.results.copy()
-        new_opt.datasets.fitness = self.datasets.fitness.copy()
-        new_opt.datasets.history = self.datasets.history.copy()
-        return new_opt
 
     def run(self, quiet: bool = False) -> None:
         """
@@ -522,13 +528,12 @@ class Optimizer:
                 creature_result_list = executor.map(sim, iterable)
         else:
             population_size = self.population.size
-            creature_result_list = thread_map(
-                sim,
-                iterable,
-                total=population_size,
-                position=0,
-                desc='Simulating Population',
-                max_workers=max_workers)
+            creature_result_list = thread_map(sim,
+                                              iterable,
+                                              total=population_size,
+                                              position=1,
+                                              desc='Simulating Population',
+                                              max_workers=max_workers)
         self.datasets.results = pd.concat(creature_result_list)
 
 
@@ -542,7 +547,7 @@ def select_fittest(ranked_pop_data: pd.DataFrame,
     return ranked_pop_data.sort_values(rank_col)[0:n_selection]
 
 
-def run_sim(opt: Optimizer, quiet: bool = False) -> Optimizer:
+def run_sim(opt: Optimizer, quiet: bool) -> Optimizer:
     """
     Creates a copy of the Optimizer and use it to run a simulation for later criteria
     selection.
@@ -570,7 +575,7 @@ def reproduce(n: int,
         n_parents=opt.config.n_parents,
         children_per_relation=opt.config.children_per_relation)
     new_pop = offspring_sexual
-    # sexual
+    # asexual
     n_offspring_asexual = n - n_offspring_sexual
     if n_offspring_asexual > 0:
         offspring_mutation = reproduce.asexual(
@@ -582,65 +587,77 @@ def reproduce(n: int,
     return new_pop
 
 
-def repopulate(opt: Optimizer) -> Population:
+def repopulate(opt: Optimizer, target_size: int) -> Population:
     """
     Select fittest creatures and make them generate the new generation.
     """
     blueprint = opt.population.blueprint
-    target_size = opt.population.size
     # select
     fittest_data = select_fittest(ranked_pop_data=opt.datasets.simulation,
                                   p=opt.config.p_selection)
     fittest_pop = Population(fittest_data[blueprint.genes.names], blueprint)
     parent_pop = fittest_pop.copy()
-    while fittest_pop.size < target_size:
+    n_tries = 0
+    while fittest_pop.size < target_size and n_tries < 10:
         pop_short = opt.population.size - fittest_pop.size
         offspring_pop = reproduce(n=pop_short,
                                   parent_pop=parent_pop,
                                   parent_fitness_data=fittest_data,
                                   opt=opt)
         fittest_pop = (fittest_pop + offspring_pop).unique()
+        n_tries += 1
     return fittest_pop
+
+
+def get_descriptor(config):
+    if config.peek_champion_variables is None:
+        def descriptor(opt, generation, n_stall):
+            return f'Generation {generation} of {config.max_generations} '\
+                   f'(stall: {n_stall} of {config.max_stall})'
+    else:
+        def descriptor(opt, generation, n_stall):
+            best_creature = opt.datasets.get_best_criature()
+            peek_info = best_creature[config.peek_champion_variables].iteritems()
+            peek = ' | '.join([f'{feat}: {val}' for feat, val in peek_info])
+            return f'Generation {generation} of {config.max_generations} '\
+                   f'(stall: {n_stall} of {config.max_stall}) '\
+                   f'peek: ({peek})'
+    return descriptor
 
 
 def optimize(opt: Optimizer,
              apply_fitness: Callable[[], None],
              check_stall: Callable[[int, pd.DataFrame, pd.DataFrame], int],
-             quiet: bool) -> Optimizer:
+             quiet: bool) -> None:
     """
     Run simulation multiple times until the best Creatures are found.
     """
+    opt.clear_datasets()
     n_stall = 0
     config = opt.config
     old_sim_data = opt.datasets.simulation.copy()
-    if not quiet:
-        pbar1 = tqdm(total=config.max_generations, position=1)
-    for i in range(config.max_generations):
-        generation = i + 1
-        descr = \
-            f'Generation {generation} of {config.max_generations} '\
-            f'(stall: {n_stall} of {config.max_stall})'
-        if not quiet:
-            pbar1.set_description(descr)
+    target_size = opt.population.size
+    descriptor = get_descriptor(config)
+    pbar = tqdm(total=config.max_generations, position=0)
+    for generation in range(1, config.max_generations + 1):
         # simulate
         simulated_opt = run_sim(opt, quiet)
-        # apply fitness
         apply_fitness(opt)
         # add history to optimizer
         opt.datasets.add_history_data(opt.datasets.simulation, generation)
+        # update bar description
+        descr = descriptor(opt, generation, n_stall)
+        pbar.set_description(descr)
+        pbar.update()
         # check stall
         new_sim_data = opt.datasets.simulation.copy()
         n_stall = check_stall(n_stall, new_sim_data, old_sim_data)
-        if not quiet:
-            pbar1.update()
-        if n_stall > config.max_stall:
+        if (n_stall > config.max_stall) or (generation == config.max_generations):
             break
         else:
             # repopulate
-            new_pop = repopulate(simulated_opt)
+            new_pop = repopulate(simulated_opt, target_size)
             # update opt's population
             opt.update_population(new_pop)
             old_sim_data = new_sim_data
-    if not quiet:
-        pbar1.close()
-    return opt
+    pbar.close()

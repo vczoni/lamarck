@@ -18,7 +18,7 @@ class Population:
     blueprint: Blueprint
 
     def __init__(self, data: pd.DataFrame, blueprint: Blueprint):
-        self.data = data
+        self.reset_data(data)
         self.blueprint = blueprint
 
     def __len__(self):
@@ -30,6 +30,9 @@ class Population:
     @property
     def size(self) -> int:
         return len(self.data)
+
+    def reset_data(self, data: pd.DataFrame) -> None:
+        self.data = data
 
     def hash_index(self) -> pd.DataFrame:
         """

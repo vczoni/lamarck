@@ -35,11 +35,12 @@ opt = Optimizer(population=pop, process=process)
 # Activate MultiThreading (for better performance)
 opt.config.multithread = True
 
+# peek best solution during runtime
+opt.config.peek_champion_variables = ['route', 'distance']
+
 # Simulate (this will return an optimized population)
 bestopt = opt.simulate.single_criteria(output='distance', objective='min')
 
 # Check the best solution
-best_creature = bestopt.datasets.get_best_criature(outputs='distance', objectives='min')
+best_creature = bestopt.datasets.get_best_criature()
 print([print(f'{k}: {x}') for k, x in best_creature.iteritems()])
-
-print(bestopt.datasets.history.sort_values('distance').head())

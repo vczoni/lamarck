@@ -263,7 +263,7 @@ opt.simulate.single_criteria(output='val', objective='max', quiet=True)
 
 ###### Creatures can't reach the best solution because only one gene is mutated
 
-#####... so we need to mutate both 'x' and 'y' genes. We do that just by changing the 'max_mutated_genes' config:
+###### ... so we need to mutate both 'x' and 'y' genes. We do that just by changing the 'max_mutated_genes' config:
 ```python
 opt.config.max_mutated_genes = 2
 opt.simulate.single_criteria(output='val', objective='max', quiet=True)

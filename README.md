@@ -240,7 +240,6 @@ opt.simulate.single_criteria(output='val', objective='max')
 
 #### Simulating WITH MUTATION
 ```python
-opt = Optimizer(new_pop, process)
 opt.config.p_mutation = 0.1
 opt.simulate.single_criteria(output='val', objective='max')
 ```

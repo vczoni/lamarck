@@ -39,8 +39,8 @@ opt.config.multithread = True
 opt.config.peek_champion_variables = ['route', 'distance']
 
 # Simulate (this will return an optimized population)
-bestopt = opt.simulate.single_criteria(output='distance', objective='min')
+opt.simulate.single_criteria(output='distance', objective='min')
 
 # Check the best solution
-best_creature = bestopt.datasets.get_best_criature()
+best_creature = opt.datasets.get_best_criature()
 print([print(f'{k}: {x}') for k, x in best_creature.iteritems()])

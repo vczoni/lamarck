@@ -23,6 +23,14 @@ def hash_cols(df: pd.DataFrame) -> pd.Series:
     return pd.Series(tuple(zip(*cols)), name='id').apply(hash_tuple)
 
 
+def get_outputs(func):
+    outputs = func.__code__.co_consts
+    if isinstance(outputs[-1], tuple):
+        return outputs[-1]
+    else:
+        return (outputs[-1],)
+
+
 # Exceptions
 class VectorialOverloadException(Exception):
     """

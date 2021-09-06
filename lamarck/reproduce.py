@@ -208,7 +208,8 @@ class Populator:
             parent_creature = select_parent(ranked_pop_data, 1, rank_column)
             kids = child_generator.asexual(parent_creature,
                                            self.blueprint.genes,
-                                           children_per_creature)
+                                           children_per_creature,
+                                           n_mutated_genes)
             offspring_list.append(kids)
         offspring_data = pd.concat(offspring_list)[self.blueprint.genes.names]\
             .reset_index(drop=True)

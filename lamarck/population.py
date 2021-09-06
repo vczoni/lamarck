@@ -18,8 +18,8 @@ class Population:
     blueprint: Blueprint
 
     def __init__(self, data: pd.DataFrame, blueprint: Blueprint):
-        self.reset_data(data)
         self.blueprint = blueprint
+        self.reset_data(data)
 
     def __len__(self):
         return self.size
@@ -31,8 +31,16 @@ class Population:
     def size(self) -> int:
         return len(self.data)
 
+    @staticmethod
+    def empty(blueprint: Blueprint):
+        """
+        Create empty Population.
+        """
+        data = pd.DataFrame(columns=blueprint.genes.names)
+        return Population(data, blueprint)
+
     def reset_data(self, data: pd.DataFrame) -> None:
-        self.data = data
+        self.data = data[self.blueprint.genes.names]
 
     def hash_index(self) -> pd.DataFrame:
         """

@@ -11,7 +11,7 @@ from tqdm.contrib.concurrent import thread_map
 from lamarck.rankcalculator import RankCalculator
 from lamarck.population import Population
 from lamarck.reproduce import Populator
-from lamarck.utils import objective_ascending_map
+from lamarck.utils import objective_ascending_map, get_outputs
 
 
 class Optimizer:
@@ -89,14 +89,6 @@ class Optimizer:
 
         def __init__(self, opt: Optimizer):
             self._opt = opt
-
-            def get_outputs(func):
-                outputs = func.__code__.co_consts
-                if isinstance(outputs[-1], tuple):
-                    return outputs[-1]
-                else:
-                    return (outputs[-1],)
-
             self._outputs = get_outputs(opt.process)
             self._build_initial_data()
 
@@ -437,6 +429,7 @@ class Optimizer:
 
             optimize(self._opt, apply_fitness, check_stall, quiet)
 
+    _original_population_data: pd.DataFrame
     population: Population
     process: Callable[[], dict]
     datasets: Datasets
@@ -462,8 +455,12 @@ class Optimizer:
         self.datasets = self.Datasets(self)
 
     def set_population(self, population: Population) -> None:
+        self._original_population_data = population.data.copy()
         self.population = population
         self.clear_datasets()
+
+    def reset(self):
+        self.reset_population_data(self._original_population_data.copy())
 
     def reset_population_data(self, data: pd.DataFrame) -> None:
         self.population.reset_data(data)
@@ -547,6 +544,14 @@ def select_fittest(ranked_pop_data: pd.DataFrame,
     return ranked_pop_data.sort_values(rank_col)[0:n_selection]
 
 
+def get_minimum_population(config: Optimizer.SimulationConfig) -> int:
+    """
+    Get the minimum amount of creatures in a Population required to properly follow the
+    simulation's specifications.
+    """
+    return int(np.ceil(config.n_parents + config.n_dispute - 1) / config.p_selection)
+
+
 def run_sim(opt: Optimizer, quiet: bool) -> Optimizer:
     """
     Creates a copy of the Optimizer and use it to run a simulation for later criteria
@@ -560,53 +565,59 @@ def run_sim(opt: Optimizer, quiet: bool) -> Optimizer:
 
 
 def reproduce(n: int,
-              parent_pop: Population,
               parent_fitness_data: pd.DataFrame,
+              p_mutation: float,
               opt: Optimizer) -> Population:
     blueprint = opt.population.blueprint
     # reproduce
     reproduce = Populator(blueprint)
     # sexual
-    n_offspring_sexual = np.ceil((1 - opt.config.p_mutation) * n)
-    offspring_sexual = reproduce.sexual(
-        ranked_pop_data=parent_fitness_data,
-        n_offspring=n_offspring_sexual,
-        n_dispute=opt.config.n_dispute,
-        n_parents=opt.config.n_parents,
-        children_per_relation=opt.config.children_per_relation)
-    new_pop = offspring_sexual
+    n_offspring_sexual = np.ceil((1 - p_mutation) * n)
+    if n_offspring_sexual > 0:
+        offspring_sexual = reproduce.sexual(
+            ranked_pop_data=parent_fitness_data,
+            n_offspring=n_offspring_sexual,
+            n_dispute=opt.config.n_dispute,
+            n_parents=opt.config.n_parents,
+            children_per_relation=opt.config.children_per_relation)
+        new_pop_sexual = offspring_sexual
+    else:
+        new_pop_sexual = Population.empty(blueprint)
     # asexual
-    n_offspring_asexual = n - n_offspring_sexual
+    n_offspring_asexual = n - new_pop_sexual.size
     if n_offspring_asexual > 0:
         offspring_mutation = reproduce.asexual(
             ranked_pop_data=parent_fitness_data,
             n_offspring=n_offspring_asexual,
             n_mutated_genes=opt.config.max_mutated_genes,
             children_per_creature=opt.config.children_per_mutation)
-        new_pop += offspring_mutation
-    return new_pop
+        new_pop_asexual = offspring_mutation
+    else:
+        new_pop_asexual = Population.empty(blueprint)
+    return new_pop_sexual + new_pop_asexual
 
 
 def repopulate(opt: Optimizer, target_size: int) -> Population:
     """
     Select fittest creatures and make them generate the new generation.
     """
-    blueprint = opt.population.blueprint
-    # select
     fittest_data = select_fittest(ranked_pop_data=opt.datasets.simulation,
                                   p=opt.config.p_selection)
-    fittest_pop = Population(fittest_data[blueprint.genes.names], blueprint)
-    parent_pop = fittest_pop.copy()
-    n_tries = 0
-    while fittest_pop.size < target_size and n_tries < 10:
-        pop_short = opt.population.size - fittest_pop.size
-        offspring_pop = reproduce(n=pop_short,
-                                  parent_pop=parent_pop,
-                                  parent_fitness_data=fittest_data,
-                                  opt=opt)
-        fittest_pop = (fittest_pop + offspring_pop).unique()
-        n_tries += 1
-    return fittest_pop
+    fittest_pop = Population(fittest_data, opt.population.blueprint)
+    pop_short = opt.population.size - fittest_pop.size
+    offspring_pop = reproduce(n=pop_short,
+                              p_mutation=opt.config.p_mutation,
+                              parent_fitness_data=fittest_data,
+                              opt=opt)
+    new_pop = (fittest_pop + offspring_pop).unique()
+    if new_pop.size < target_size:
+        pop_short = target_size - new_pop.size
+        complemental_pop = reproduce(n=pop_short,
+                                     p_mutation=1,
+                                     parent_fitness_data=fittest_data,
+                                     opt=opt)
+        new_pop = (new_pop + complemental_pop).unique()
+    return new_pop
 
 
 def get_descriptor(config):
@@ -632,9 +643,10 @@ def optimize(opt: Optimizer,
     """
     Run simulation multiple times until the best Creatures are found.
     """
-    opt.clear_datasets()
+    opt.reset()
     n_stall = 0
     config = opt.config
+    minimum_pop = get_minimum_population(config)
     old_sim_data = opt.datasets.simulation.copy()
     target_size = opt.population.size
     descriptor = get_descriptor(config)
@@ -657,6 +669,8 @@ def optimize(opt: Optimizer,
         else:
             # repopulate
             new_pop = repopulate(simulated_opt, target_size)
+            if new_pop.size < minimum_pop:
+                break
             # update opt's population
             opt.update_population(new_pop)
             old_sim_data = new_sim_data

@@ -1,16 +1,16 @@
 import numpy as np
-import time
 from lamarck import BlueprintBuilder, Optimizer
+
 
 # Defining the Process
 def my_process(x, y):
     val = np.sin(x)*x + np.sin(y)*y
-    time.sleep(0.1)
     return {'val': val}
 
 # Building the Blueprint
 builder = BlueprintBuilder()
-# Adding gene specs
+# (note that 'x' and 'y' are declared, which are the exact same names as the
+# parameters of the function 'my_process' - *this is required*)
 builder.add_float_gene(name='x',
                        domain=(0, 12*np.pi))
 
@@ -28,7 +28,7 @@ pop = popdet + poprnd
 opt = Optimizer(pop, my_process)
 
 # Simulate (this will return an optimized population)
-bestopt = opt.simulate.single_criteria(output='val', objective='max')
+opt.simulate.single_criteria(output='val', objective='max')
 
 # Check the best solution
-print(bestopt.datasets.get_best_criature())
+print(opt.datasets.get_best_criature())

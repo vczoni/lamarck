@@ -275,10 +275,13 @@ class Optimizer:
         max_generations: int = 20
         max_stall: int = 5
         p_selection: float = 0.5
+        p_selection_weak: float = 0.
+        randomize_to_fill_pop: bool = False
         n_dispute: int = 2
         n_parents: int = 2
         children_per_relation: int = 2
-        p_mutation: float = 0.1
+        p_mutation: float = 0.05
+        p_new_random: float = 0.
         max_mutated_genes: int = 1
         children_per_mutation: int = 1
         multithread: bool = True
@@ -535,13 +538,35 @@ class Optimizer:
 
 
 def select_fittest(ranked_pop_data: pd.DataFrame,
-                   p: float = 0.5,
+                   p: float,
                    rank_col: str = 'Rank') -> pd.DataFrame:
     """
-    Select the fraction :p: of creatures from a ranked population data based on a Rank column.
+    Select the fraction :p: of the fittest creatures from a ranked population data based on a
+    Rank column.
     """
     n_selection = int(round(len(ranked_pop_data) * p))
     return ranked_pop_data.sort_values(rank_col)[0:n_selection]
+
+
+def select_weakest(ranked_pop_data: pd.DataFrame,
+                   p: float,
+                   rank_col: str = 'Rank') -> pd.DataFrame:
+    """
+    Select the fraction :p: of the weakest creatures from a ranked population data based on a
+    Rank column.
+    """
+    n_selection = int(round(len(ranked_pop_data) * p))
+    return ranked_pop_data.sort_values(rank_col)[-n_selection:]
+
+
+def select(opt: Optimizer):
+    selected_data = select_fittest(ranked_pop_data=opt.datasets.simulation,
+                                   p=opt.config.p_selection)
+    weakest_data = select_weakest(ranked_pop_data=opt.datasets.simulation,
+                                  p=1-opt.config.p_selection)
+    n_weaker = int(len(opt.datasets.simulation) * opt.config.p_selection_weak)
+    weaker_data = weakest_data.sample(n_weaker)
+    return pd.concat((selected_data, weaker_data))
 
 
 def get_minimum_population(config: Optimizer.SimulationConfig) -> int:
@@ -564,58 +589,76 @@ def run_sim(opt: Optimizer, quiet: bool) -> Optimizer:
     return opt
 
 
-def reproduce(n: int,
-              parent_fitness_data: pd.DataFrame,
-              p_mutation: float,
-              opt: Optimizer) -> Population:
-    blueprint = opt.population.blueprint
-    # reproduce
-    reproduce = Populator(blueprint)
-    # sexual
-    n_offspring_sexual = np.ceil((1 - p_mutation) * n)
-    if n_offspring_sexual > 0:
+def generate_offspring_sexually(opt: Optimizer,
+                                n_offspring: int,
+                                parent_fitness_data: pd.DataFrame):
+    reproduce = Populator(opt.population.blueprint)
+    if n_offspring > 0:
         offspring_sexual = reproduce.sexual(
             ranked_pop_data=parent_fitness_data,
-            n_offspring=n_offspring_sexual,
+            n_offspring=n_offspring,
             n_dispute=opt.config.n_dispute,
             n_parents=opt.config.n_parents,
             children_per_relation=opt.config.children_per_relation)
         new_pop_sexual = offspring_sexual
     else:
-        new_pop_sexual = Population.empty(blueprint)
-    # asexual
-    n_offspring_asexual = n - new_pop_sexual.size
-    if n_offspring_asexual > 0:
+        new_pop_sexual = Population.empty(opt.population.blueprint)
+    return new_pop_sexual
+
+
+def generate_offspring_asexually(opt: Optimizer,
+                                 n_offspring: int,
+                                 parent_fitness_data: pd.DataFrame):
+    reproduce = Populator(opt.population.blueprint)
+    if n_offspring > 0:
         offspring_mutation = reproduce.asexual(
             ranked_pop_data=parent_fitness_data,
-            n_offspring=n_offspring_asexual,
+            n_offspring=n_offspring,
             n_mutated_genes=opt.config.max_mutated_genes,
             children_per_creature=opt.config.children_per_mutation)
         new_pop_asexual = offspring_mutation
     else:
-        new_pop_asexual = Population.empty(blueprint)
-    return new_pop_sexual + new_pop_asexual
+        new_pop_asexual = Population.empty(opt.population.blueprint)
+    return new_pop_asexual
 
 
-def repopulate(opt: Optimizer, target_size: int) -> Population:
+def make_new_generation(n: int,
+                        parent_fitness_data: pd.DataFrame,
+                        p_mutation: float,
+                        p_random: float,
+                        opt: Optimizer) -> Population:
+    p_selection = opt.config.p_selection - opt.config.p_selection_weak
+    # sexual
+    p_sexual = 1 - p_selection - p_mutation - p_random
+    n_offspring_sexual = int(np.ceil(p_sexual * n))
+    new_pop_sexual = generate_offspring_sexually(opt, n_offspring_sexual, parent_fitness_data)
+    # asexual
+    n_offspring_asexual = int(np.ceil(p_mutation * n))
+    new_pop_asexual = generate_offspring_asexually(opt, n_offspring_asexual, parent_fitness_data)
+    # random
+    n_offspring_random = int(np.ceil(p_random * n))
+    new_pop_random = opt.population.blueprint.populate.random(n_offspring_random)
+    return new_pop_sexual + new_pop_asexual + new_pop_random
+
+
+def repopulate(opt: Optimizer, selected_data: pd.DataFrame, target_size: int) -> Population:
     """
-    Select fittest creatures and make them generate the new generation.
+    Create new generation.
     """
-    fittest_data = select_fittest(ranked_pop_data=opt.datasets.simulation,
-                                  p=opt.config.p_selection)
-    fittest_pop = Population(fittest_data, opt.population.blueprint)
-    pop_short = opt.population.size - fittest_pop.size
-    offspring_pop = reproduce(n=pop_short,
-                              p_mutation=opt.config.p_mutation,
-                              parent_fitness_data=fittest_data,
-                              opt=opt)
+    fittest_pop = Population(selected_data, opt.population.blueprint)
+    offspring_pop = make_new_generation(n=target_size,
+                                        parent_fitness_data=selected_data,
+                                        p_mutation=opt.config.p_mutation,
+                                        p_random=opt.config.p_new_random,
+                                        opt=opt)
     new_pop = (fittest_pop + offspring_pop).unique()
-    if new_pop.size < target_size:
+    if (new_pop.size < target_size) and opt.config.randomize_to_fill_pop:
         pop_short = target_size - new_pop.size
-        complemental_pop = reproduce(n=pop_short,
-                                     p_mutation=1,
-                                     parent_fitness_data=fittest_data,
-                                     opt=opt)
+        complemental_pop = make_new_generation(n=pop_short,
+                                               parent_fitness_data=selected_data,
+                                               p_mutation=0,
+                                               p_random=1,
+                                               opt=opt)
         new_pop = (new_pop + complemental_pop).unique()
     return new_pop
 
@@ -667,8 +710,10 @@ def optimize(opt: Optimizer,
         if (n_stall > config.max_stall) or (generation == config.max_generations):
             break
         else:
+            # select
+            selected_data = select(simulated_opt)
             # repopulate
-            new_pop = repopulate(simulated_opt, target_size)
+            new_pop = repopulate(simulated_opt, selected_data, target_size)
             if new_pop.size < minimum_pop:
                 break
             # update opt's population

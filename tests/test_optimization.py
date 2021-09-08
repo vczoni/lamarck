@@ -37,6 +37,7 @@ class TestOptimization(unittest.TestCase):
         opt = Optimizer(pop, my_process)
 
         # Simulate (this will return an optimized population)
+        opt.config.multithread = False
         opt.simulate.single_criteria(output='val', objective='max')
 
         # Check the best solution

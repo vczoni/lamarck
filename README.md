@@ -2,15 +2,30 @@
 
 The Lamarck package is a simple optimization tool that operates by creating Populations of different solutions, running them through a specific Process (an user-defined function) and selecting, mixing and tweaking them to get to the best of a wide range of possibilities.
 
-The Process must be a Python `function` with one or more input parameters and must return a `dict` of outputs. The Solution Space is defined by the "Genome Blueprint", which is a `dict` that determines how those input parameters (genes) will configure a solution (genome) by specifying what are the ranges of those variables and how they behave.
+The Process must be a Python `function` with one or more input parameters and must return a `dict` of outputs. The Solution Space is defined by the "Genome Blueprint", which is a `dict` that determines how those **input parameters** ("genes") will configure a **solution** ("genome", "Creature") by specifying what are the ranges of those variables and how they behave.
 
 ##### Basic Flow
 
 > ```raw
-> Genome Blueprint --> Population --> Process --> Results --> Selection --> Mutation
->                         ^                                                      |
->                         +--(repeat)--------------------------------------------+
+> Genome Blueprint --> Population --> Process --> Results --> Selection --> Cross-over --> Mutation
+>                         ^                                                                   |
+>                         +------(repeat)-----------------------------------------------------+
 > ```
+
+## Table Of Contents
+1. [Features](#features)
+1. [Examples](#examples)
+    1. [Example 1 - Basic flow](#basic-flow-example)
+    1. [Example 2 - Travelling Salesman Problem](#salesman-example)
+    1. [Proof Of Concept - Local Maximum](#proof-of-concept)
+1. [Simulation Configurations](#sim-configs)
+1. [Genome Specifications](#genome-specifications)
+1. [Defining the Process](#process-definition)
+1. [Practical Requirements Summary](#req-summary)
+
+
+
+<div id='features'/>
 
 ## Features
 - Creation of **very diverse** Populations
@@ -34,8 +49,13 @@ The Process must be a Python `function` with one or more input parameters and mu
     - Evolution of the solutions
     - Pareto fronts
 
-## Examples
-### Basic Example #1 - Simple optimization run
+<div id='examples'/>
+
+## Examples <a name="examples"></a>
+
+<div id='basic-flow-example'/>
+
+### Example #1 - Simple optimization run <a name="basic-flow"></a>
 
 ```python
 import numpy as np
@@ -48,8 +68,8 @@ def my_process(x, y):
 
 # Building the Blueprint
 builder = BlueprintBuilder()
-# (note that 'x' and 'y' are declared, which are the exact same names as the
-# parameters of the function 'my_process' - *this is required*)
+# (note that 'x' and 'y' are declared, which are the exact same names as the parameters of the
+# function 'my_process' - *this is required*)
 builder.add_float_gene(name='x',
                        domain=(0, 12*np.pi))
 
@@ -58,9 +78,14 @@ builder.add_float_gene(name='y',
 
 blueprint = builder.get_blueprint()
 
-# Building the Population
+# Building the Population (deterministically and randomly)
+# Deterministic: will make a linearly spaced range of 20 values for both x and y genes
+# 20 values, 2 genes: 20**2 = 400 Creatures
 popdet = blueprint.populate.deterministic(n=20)
+# Random: will make Creatures with Genes with random values (within its domains)
+# n = 600: 600 Creatures
 poprnd = blueprint.populate.random(n=600)
+# Population will have 1000 Creatures (400 + 600)
 pop = popdet + poprnd
 
 # Setting up the Optimizer
@@ -79,6 +104,8 @@ print(opt.datasets.get_best_criature())
 
 # So it found x=33.01 and y=33.02 as the best Solution.
 ```
+
+<div id='salesman-example'/>
 
 ### Basic Example #2 - Travelling Salesman
 (Using the module from the `docs/examples` folder: *`toymodules/salesman.py`*)
@@ -159,15 +186,17 @@ trav_salesman.plot_route(best_route)
 # So The best Sequence it found (minimum 'distance' travelled) is:
 # (9, 18, 3, 0, 6, 16, 12, 7, 13, 11, 15, 10, 5, 8, 14, 2, 17, 4, 19, 1)
 
-# Just so you know, there are 1.216.451.004.088.320.000 different Routes in
-# this problem (of 20 cities that are all interconnected), so THE best solution
-# is REALLY HARD to find but the algorithm will get very close very fast
+# Just so you know, there are 1.216.451.004.088.320.000 different Routes in this problem (of 20
+# cities that are all interconnected), so the ABSOLUTE BEST solution is REALLY HARD to find but
+# the algorithm will get very close very fast
 ```
 ###### Evolution of the Species:
 <img src="docs/img/salesman_20c_evolution.gif"/>
 
 
-### Basic Example #3 - Local Maximum
+<div id='proof-of-concept'/>
+
+### Proof Of Concept - Local Maximum
 ```python
 import numpy as np
 from matplotlib import pyplot as plt
@@ -220,7 +249,7 @@ opt.simulate.single_criteria(output='val', objective='max')
 <img src="docs/img/local_max_evolution.gif"/>
 
 
-## Starting away from optimum space:
+#### Starting away from optimum space:
 ```python
 constraint = lambda x, y: (x < 10) & (y < 10)
 blueprint.add_constraint(constraint)
@@ -228,7 +257,7 @@ blueprint.add_constraint(constraint)
 new_pop = blueprint.populate.deterministic(20) + blueprint.populate.random(600)
 ```
 
-#### Simulating WITHOUT MUTATION
+##### Simulating WITHOUT MUTATION
 ```python
 opt = Optimizer(new_pop, process)
 opt.config.p_mutation = 0
@@ -238,7 +267,7 @@ opt.simulate.single_criteria(output='val', objective='max')
 
 ###### Creatures get stuck in a local maximum
 
-#### Simulating WITH MUTATION
+##### Simulating WITH MUTATION
 ```python
 opt.config.p_mutation = 0.1
 opt.simulate.single_criteria(output='val', objective='max')
@@ -270,19 +299,63 @@ opt.simulate.single_criteria(output='val', objective='max', quiet=True)
 ```
 <img src="docs/img/local_max_isolated_2gene_evolution.gif"/>
 
-###### Now it eventually reach the other area and find the global max =)
+###### Now the simulation eventually reaches the other area and finds the global max =)
 
+
+But it is important to notice that mutating 2 genes here meant that **ALL genes were mutated**, which means that those mutations were basically creating new **complete random Genomes**, which is not necessarily a very efficient approach (specially with higher amounts of genes), although, as just shown, it CAN sometimes work just fine.
+
+There is acually a dedicated configuration for generating a proportion of completely random Creatures between Generations, which is:
+
+```python
+# Example: setting it to 10%...
+opt.config.p_new_random = 0.1 # default value is 0.
+```
+
+There is another option to make this simulation converge to the global maximum, which is to **allow some of the weaker Creatures** to reproduce, which will **increase the level of diversity** within the population, making some new kind of combinations possible without having to appeal to a completely randomized Creature making. This is possible by changing this configuration:
+
+```python
+# Example: setting it to 15%...
+opt.config.p_selection_weak = 0.15 # default value is 0.
+```
+
+Using the following configuration, a similar behavior occurs, and new diverse Creatures produced by supposedly "weak" parents are the ones responsible for providing the variety that is necessary to reach new (and, in that case, better) areas of solutions.
+
+```python
+opt.config.p_selection = 0.3
+opt.config.p_selection_weak = 0.2 # now 20% of the selected Creatures come from the "weak" slice
+opt.config.max_mutated_genes = 1 # back to 1 mutation (which previously didn't work)
+
+# Needed to amp those up because this solution has a slower convergence rate
+opt.config.max_generations = 40
+opt.config.max_stall = 15
+```
+
+<img src="docs/img/local_max_isolated_diversity_evolution.gif"/>
+
+This demonstrates how diversity effectively improves the Population and helps a better exploring of the solution space.
+
+This method in particular takes more Generations to find the best solutions, but it shows how a **well-balanced variety of different methods of diversifying the Population** surely will **improve the Optimization process** both in terms of **quality and performance**.
+
+##
+
+##### For more detail on those examples, check out the `docs/examples` directory.
+
+
+<div id='sim-configs'/>
 
 ## Simulation Configs
 ###### Default values:
 ```python
 max_generations: int = 20 # maximum number of Generations
 max_stall: int = 5 # How many times the simulation will run with no new best Creature
-p_selection: float = 0.5 # Proportion of the Population that will survive to the next Generation
+p_selection: float = 0.5 # Proportion of the Fittest that will survive to the next Generation
+p_selection_weak: float = 0. # Proportion of the Weaker that will survive to the next Generation
+randomize_to_fill_pop: bool = False # Generates new random Creatures if new ones are not unique
 n_dispute: int = 2 # How many Creatures will be randomly selected to dispute for each Parent spot
 n_parents: int = 2 # Amount of Parents that will provide genomes to mix and form a new Creature
 children_per_relation: int = 2 # How many children the same group of parents will generate
 p_mutation: float = 0.1 # Proportion of New Population that will be generated by Mutation
+p_new_random: float = 0. # Proportion of New Population that will be generated Randomly
 max_mutated_genes: int = 1 # Maximum amount of genes the can mutate
 children_per_mutation: int = 1 # How many children the same Creature will generate by Mutating
 multithread: bool = True # Using Multithread to simulate multiple Creatures concurrently
@@ -291,7 +364,9 @@ peek_champion_variables: list | None = None # Select some variables to show duri
 ```
 
 
-### Genome Specifications
+<div id='genome-specifications'/>
+
+## Genome Specifications
 
 1. Scalar
 
@@ -392,7 +467,10 @@ builder.add_bool_gene(name='bool_var')
 blueprint = builder.get_blueprint()
 ```
 
-##### Defining the process
+
+<div id='process-definition'/>
+
+## Defining the process
 This genome blueprint will help build the population with multiple values for the variables `num_var_int`, `num_var_float`, `cat_var`, `vec_var`, `vec_var_replace` and `bool_var`.
 
 In this case, the `Process` must be a `Function` that has those variables as parameters and the output MUST ALWAYS be a `dict` with all the desired outputs.
@@ -420,5 +498,57 @@ def some_process(num_var_int, num_var_float, cat_var, vec_var, vec_var_replace, 
 ```
 
 
-##### For more examples and use cases, check out the `docs/examples` directory.
+<div id='req-summary'/>
 
+## Summary of all practical Requirements
+
+1. The Process's parameters must have the same names as the Genes.
+> ```python
+> def proc(x, y, z):
+>        ...
+>
+> blueprint_dict = {
+>     'x': {...},
+>     'y': {...},
+>     'z': {...},
+> }
+> ```
+
+2. The Process must return a dictionary with already set variables.
+> ```python
+> def proc(x, y, z):
+>     ...
+>     return {'output': some_variable, 'other_output': another_variable}
+> ```
+
+3. The Proportions `p_selection`, `p_selection_weak`, `p_mutation` and `p_new_random` are all absolute, so...
+    - `(p_selection + p_selection_weak + p_mutation + p_new_random) < 1`
+    - The proportion of the Population generated by Sexual Reproduction is
+        `1 - p_selection - p_selection_weak - p_mutation - p_new_random`
+
+> ```python
+> # Example - population of 1000 Creatures
+> 
+> # Selecting 40% of the population ordered by most to least fit
+> p_selection = 0.4 # 400 of the fittest Creatures will fight to generate offspring
+> 
+> # Adding some of the weaker (randomly) to reproduce/mutate
+> p_selection_weak = 0.05 # 50 of the weaker Creatures will also fight to generate offspring
+> 
+> # Mutating 10% and randomizing 15% (OF 1000 CREATURES)
+> p_mutation = 0.1 # 100 Creatures will be generated by Mutation
+> p_new_random = 0.15 # 150 Creatures will be generated randomly
+> 
+> # Adding all up...
+> 
+> # 450 Creatures were selected
+> # 550 Creatures were eliminated
+> 
+> # 550 new Creatures will be generated by those selected ones
+> # 100 Creatues will be Generated by mutation (asexual reproduction)
+> # 150 Creatures will be generated randomly
+> 
+> # 550 - 100 - 150 = 300
+> 
+> # 300 will be generated by crossing genes (sexual reproduction)
+> ```

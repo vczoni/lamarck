@@ -311,7 +311,7 @@ There is acually a dedicated configuration for generating a proportion of comple
 opt.config.p_new_random = 0.1 # default value is 0.
 ```
 
-There is another option to make this simulation converge to the global maximum, which is to **allow some of the weaker Creatures** to reproduce, which will **increase the level of diversity** within the population, making some new kind of combinations possible without having to appeal to a completely randomized Creature making. This is possible by changing this configuration:
+There is another option to make this simulation converge to the global maximum, which is to **allow some of the weaker Creatures to reproduce**, which will **increase the level of diversity** within the population, making some new kind of combinations possible without having to appeal to a completely randomized Creature making. This is possible by changing this configuration:
 
 ```python
 # Example: setting it to 15%...
@@ -332,7 +332,7 @@ opt.config.max_stall = 15
 
 <img src="docs/img/local_max_isolated_diversity_evolution.gif"/>
 
-This demonstrates how diversity effectively improves the Population and helps a better exploring of the solution space.
+This demonstrates how diversity effectively improves the Population and helps providing a better exploration of the solution space.
 
 This method in particular takes more Generations to find the best solutions, but it shows how a **well-balanced variety of different methods of diversifying the Population** surely will **improve the Optimization process** both in terms of **quality and performance**.
 

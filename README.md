@@ -315,9 +315,14 @@ opt.config.p_selection_weak = 0.15 # default value is 0.
 Using the following configuration, a similar behavior occurs, and new diverse Creatures produced by supposedly "weak" parents are the ones responsible for providing the variety that is necessary to reach new (and, in that case, better) areas of solutions.
 
 ```python
+# Selecting 50% of the population to reproduce
+# 30% are the fittest
 opt.config.p_selection = 0.3
-opt.config.p_selection_weak = 0.2 # now 20% of the selected Creatures come from the "weak" slice
-opt.config.max_mutated_genes = 1 # back to 1 mutation (which previously didn't work)
+# 20% randomly selected from the bottom 70%
+opt.config.p_selection_weak = 0.2
+
+# back to 1 mutation (which previously didn't work)
+opt.config.max_mutated_genes = 1
 
 # Needed to amp those up because this solution has a slower convergence rate
 opt.config.max_generations = 40
@@ -325,6 +330,8 @@ opt.config.max_stall = 15
 ```
 
 <img src="docs/img/local_max_isolated_diversity_evolution.gif"/>
+
+###### Global maximum os reached even with just 1 gene being mutated
 
 This demonstrates how diversity effectively improves the Population and helps providing a better exploration of the solution space.
 
@@ -340,10 +347,10 @@ This method in particular takes more Generations to find the best solutions, but
 ## Simulation Configs
 ###### Default values:
 ```python
-max_generations: int = 20 # maximum number of Generations
+max_generations: int = 20 # Maximum number of Generations
 max_stall: int = 5 # How many times the simulation will run with no new best Creature
-p_selection: float = 0.5 # Proportion of the Fittest that will survive to the next Generation
-p_selection_weak: float = 0. # Proportion of the Weaker that will survive to the next Generation
+p_selection: float = 0.5 # Proportion that will be selected by sorting the fittest
+p_selection_weak: float = 0. # Proportion that will be selected randomly, from the 'weaker' slice
 randomize_to_fill_pop: bool = False # Generates new random Creatures if new ones are not unique
 n_dispute: int = 2 # How many Creatures will be randomly selected to dispute for each Parent spot
 n_parents: int = 2 # Amount of Parents that will provide genomes to mix and form a new Creature

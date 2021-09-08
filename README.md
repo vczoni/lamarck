@@ -148,9 +148,6 @@ process = process_deco(trav_salesman)
 
 # Setting up the Optimizer
 opt = Optimizer(population=pop, process=process)
-
-# peek best solution during runtime
-opt.config.peek_champion_variables = ['route', 'distance']
 ```
 ##### - "Light" Simulation:
 ```python

@@ -91,7 +91,7 @@ pop = popdet + poprnd
 # Setting up the Optimizer
 opt = Optimizer(pop, my_process)
 
-# Simulate (this will return an optimized population)
+# Simulate
 opt.simulate.single_criteria(output='val', objective='max')
 
 # Check the best solution
@@ -140,7 +140,7 @@ pop = blueprint.populate.random(n=5000)
 trav_salesman = TravelSalesman(number_of_cities, seed=123)
 trav_salesman.plot()
 ```
-<img src="docs/img/salesman_10c_space.png"/>
+<img src="docs/img/salesman_20c_space.png"/>
 
 ```python
 # Setting up the Process
@@ -148,9 +148,6 @@ process = process_deco(trav_salesman)
 
 # Setting up the Optimizer
 opt = Optimizer(population=pop, process=process)
-
-# Activate MultiThreading (for better performance)
-opt.config.multithread = True
 
 # peek best solution during runtime
 opt.config.peek_champion_variables = ['route', 'distance']

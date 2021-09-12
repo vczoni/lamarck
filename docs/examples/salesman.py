@@ -4,6 +4,7 @@ from lamarck import BlueprintBuilder, Optimizer
 
 builder = BlueprintBuilder()
 
+
 # Defining the Process
 # In order to persist the TravelSalesman object for the Process, we need to
 # wrap it in a function
@@ -11,6 +12,7 @@ def process_deco(travel_salesman):
     def wrapper(route):
         return {'distance': travel_salesman.get_route_distance(route)}
     return wrapper
+
 
 # Genome Blueprint
 # (this will only have one variable that is a "Vector" of the particular order
@@ -27,6 +29,7 @@ pop = blueprint.populate.random(n=5000)
 
 # Setting up the Environment
 trav_salesman = TravelSalesman(number_of_cities, seed=123)
+trav_salesman.create.random()
 process = process_deco(trav_salesman)
 
 # Setting up the Optimizer

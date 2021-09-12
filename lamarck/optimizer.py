@@ -281,9 +281,9 @@ class Optimizer:
         n_parents: int = 2
         children_per_relation: int = 2
         p_mutation: float = 0.05
-        p_new_random: float = 0.
         max_mutated_genes: int = 1
         children_per_mutation: int = 1
+        p_new_random: float = 0.
         multithread: bool = True
         max_workers: int | None = None
         peek_champion_variables: list | None = None

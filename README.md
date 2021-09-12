@@ -15,13 +15,13 @@ Genome Blueprint --> Population --> Process --> Results --> Selection --> Cross-
 ## Table Of Contents
 1. [Features](#features)
 1. [Examples](#examples)
-    1. [Example 1 - Basic flow](#basic-flow-example)
+    1. [Example 1 - The Basics](#basic-flow-example)
     1. [Example 2 - Travelling Salesman Problem](#salesman-example)
     1. [Proof Of Concept - Local Maximum](#proof-of-concept)
 1. [Simulation Configurations](#sim-configs)
 1. [Genome Specifications](#genome-specifications)
 1. [Defining the Process](#process-definition)
-1. [Practical Requirements Summary](#req-summary)
+1. [Practical Development Requirements Summary](#req-summary)
 
 
 
@@ -51,11 +51,10 @@ Genome Blueprint --> Population --> Process --> Results --> Selection --> Cross-
 
 <div id='examples'/>
 
-## Examples <a name="examples"></a>
-
+## Examples
 <div id='basic-flow-example'/>
 
-### Example #1 - Simple optimization run <a name="basic-flow"></a>
+### Example #1 - Simple optimization run
 
 ```python
 import numpy as np
@@ -68,7 +67,7 @@ def my_process(x, y):
 
 # Building the Blueprint
 builder = BlueprintBuilder()
-# (note that 'x' and 'y' are declared, which are the exact same names as the parameters of the
+# (notice that 'x' and 'y' are declared, which are the exact same names as the parameters of the
 # function 'my_process' - *this is required*)
 builder.add_float_gene(name='x',
                        domain=(0, 12*np.pi))
@@ -138,6 +137,7 @@ pop = blueprint.populate.random(n=5000)
 
 # Checking the cities "map"
 trav_salesman = TravelSalesman(number_of_cities, seed=123)
+trav_salesman.create.random()
 trav_salesman.plot()
 ```
 <img src="docs/img/salesman_20c_space.png"/>
@@ -186,6 +186,19 @@ trav_salesman.plot_route(best_route)
 ```
 ###### Evolution of the Species:
 <img src="docs/img/salesman_20c_evolution.gif"/>
+
+#### Testing on a scenario with an obvious solution: Cities form a circle
+
+```python
+trav_salesman.create.circle()
+process = process_deco(trav_salesman)
+opt = Optimizer(population=pop, process=process)
+opt.simulate.single_criteria(output='distance', objective='min')
+```
+
+###### Evolution of the Species:
+<img src="docs/img/salesman_20c_circle_evolution.gif"/>
+
 
 
 <div id='proof-of-concept'/>
@@ -296,23 +309,23 @@ opt.simulate.single_criteria(output='val', objective='max', quiet=True)
 ###### Now the simulation eventually reaches the other area and finds the global max =)
 
 
-But it is important to notice that mutating 2 genes here meant that **ALL genes were mutated**, which means that those mutations were basically creating new **complete random Genomes**, which is not necessarily a very efficient approach (specially with higher amounts of genes), although, as just shown, it CAN sometimes work just fine.
+But it is important to notice that, in this case, mutating 2 genes meant **ALL genes were mutated**, which means those mutations were basically creating new **complete random Genomes**, which is not necessarily a very efficient approach (specially with higher amounts of genes), although, as just shown, it CAN sometimes work just fine.
 
-There is acually a dedicated configuration for generating a proportion of completely random Creatures between Generations, which is:
+There is acually a dedicated configuration for generating a proportion of completely random Creatures between Generations:
 
 ```python
 # Example: setting it to 10%...
 opt.config.p_new_random = 0.1 # default value is 0.
 ```
 
-There is another option to make this simulation converge to the global maximum, which is to **allow some of the weaker Creatures to reproduce**, which will **increase the level of diversity** within the population, making some new kind of combinations possible without having to appeal to a completely randomized Creature making. This is possible by changing this configuration:
+Another way of making this simulation converge to the global maximum is to **allow some of the weaker Creatures to reproduce**, which will **increase the level of diversity** within the population, providing some new kind of combinations possible without having to appeal to a completely randomized Creature making. This is possible by changing this configuration:
 
 ```python
 # Example: setting it to 15%...
 opt.config.p_selection_weak = 0.15 # default value is 0.
 ```
 
-Using the following configuration, a similar behavior occurs, and new diverse Creatures produced by supposedly "weak" parents are the ones responsible for providing the variety that is necessary to reach new (and, in that case, better) areas of solutions.
+Using the following configuration, a similar behavior from the last example occurs, and new diverse Creatures produced by supposedly "weak" parents are the ones that can reach the global optimum area, because some "weak genes" were responsible for providing the variety that was necessary to reach those solutions.
 
 ```python
 # Selecting 50% of the population to reproduce
@@ -345,7 +358,55 @@ This method in particular takes more Generations to find the best solutions, but
 <div id='sim-configs'/>
 
 ## Simulation Configs
-###### Default values:
+
+1. **max_generations**
+`type: int | default: 20`
+Maximum number of Generations simulated.
+1. **max_stall**
+`type: int | default: 5`
+How many times the simulation will run with no new best Creature found.
+1. **p_selection**
+`type: float | default: 0.5`
+Proportion that will be selected by sorting the fittest.
+1. **p_selection_weak**
+`type: float | default: 0.`
+Proportion that will be selected randomly, from the 'weaker' slice.
+1. **randomize_to_fill_pop**
+`type: bool | default: False`
+Generates new random Creatures if new ones are not unique.
+1. **n_dispute**
+`type: int | default: 2`
+How many Creatures will be randomly selected to dispute for each Parent spot.
+1. **n_parents**
+`type: int | default: 2`
+Amount of Parents that will provide genomes to mix and form a new Creature.
+1. **children_per_relation**
+`type: int | default: 2`
+How many children the same group of parents will generate.
+1. **p_mutation**
+`type: float | default: 0.1`
+Proportion of New Population that will be generated by Mutation.
+1. **max_mutated_genes**
+`type: int | default: 1`
+Maximum amount of genes the can mutate per Creature.
+1. **children_per_mutation**
+`type: int | default: 1`
+How many children the same Creature will generate by Mutating.
+1. **p_new_random**
+`type: float | default: 0.`
+Proportion of New Population that will be generated Randomly.
+1. **multithread**
+`type: bool | default: True`
+Using Multithread to simulate multiple Creatures concurrently.
+1. **max_workers**
+`type: int | default: None`
+Maximum number of workers (only used for Multithread simulatioins).
+1. **peek_champion_variables**
+`type: list | default: None`
+Select some variables to show during runtime. The results from the best Creature will be displayed with the simulation progress.
+
+
+###### Config Summary:
 ```python
 max_generations: int = 20 # Maximum number of Generations
 max_stall: int = 5 # How many times the simulation will run with no new best Creature
@@ -356,12 +417,12 @@ n_dispute: int = 2 # How many Creatures will be randomly selected to dispute for
 n_parents: int = 2 # Amount of Parents that will provide genomes to mix and form a new Creature
 children_per_relation: int = 2 # How many children the same group of parents will generate
 p_mutation: float = 0.1 # Proportion of New Population that will be generated by Mutation
-p_new_random: float = 0. # Proportion of New Population that will be generated Randomly
 max_mutated_genes: int = 1 # Maximum amount of genes the can mutate
 children_per_mutation: int = 1 # How many children the same Creature will generate by Mutating
+p_new_random: float = 0. # Proportion of New Population that will be generated Randomly
 multithread: bool = True # Using Multithread to simulate multiple Creatures concurrently
 max_workers: int | None = None # Multithread Workers
-peek_champion_variables: list | None = None # Select some variables to show during
+peek_champion_variables: list | None = None # Select some variables to show during runtime
 ```
 
 
@@ -501,7 +562,7 @@ def some_process(num_var_int, num_var_float, cat_var, vec_var, vec_var_replace, 
 
 <div id='req-summary'/>
 
-## Summary of all practical Requirements
+## Summary of all practical Development Requirements
 
 1. The Process's parameters must have the same names as the Genes.
 > ```python

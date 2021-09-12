@@ -26,10 +26,10 @@ class TestBlueprint(unittest.TestCase):
                 'specs': {'domain': (100, 250)}},
             'brand': {
                 'type': 'categorical',
-                'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR']}},
+                'specs': {'domain': ['AMTA', 'REPAL', 'NOSOR', None]}},
             'sick_pattern': {
                 'type': 'array',
-                'specs': {'domain': ['L', 'R'],
+                'specs': {'domain': ['L', 'R', None],
                           'length': 3}},
             'groove': {
                 'type': 'set',
@@ -59,12 +59,11 @@ class TestBlueprint(unittest.TestCase):
             [6, 10],
             [8, 24],
             [100., 250.],
-            ['AMTA', 'REPAL'],
-            [('L', 'L', 'L'), ('R', 'R', 'R')],
+            ['AMTA', 'NOSOR'],
+            [('L', 'L', 'L'), (None, None, None)],
             [('hh', 'bd', 'sn'), ('sn', 'bd', 'hh')],
             [False, True],
         )
-        items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
         actual = blueprint.populate.deterministic(n=2).data
@@ -77,11 +76,10 @@ class TestBlueprint(unittest.TestCase):
             [8, 16, 24],
             [100., 175., 250.],
             ['AMTA', 'REPAL', 'NOSOR'],
-            [('L', 'L', 'L'), ('L', 'R', 'R'), ('R', 'R', 'R')],
+            [('L', 'L', 'L'), ('R', 'R', 'R'), (None, None, None)],
             [('hh', 'bd', 'sn'), ('bd', 'hh', 'sn'), ('sn', 'bd', 'hh')],
             [False, True],
         )
-        items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
         actual = blueprint.populate.deterministic(n=3).data
@@ -94,13 +92,12 @@ class TestBlueprint(unittest.TestCase):
             [8, 16, 24],
             [100., 137.5, 175., 212.5, 250.],
             ['AMTA', 'REPAL', 'NOSOR'],
-            [('L', 'L', 'L'), ('L', 'L', 'R'), ('L', 'R', 'L'),
-             ('R', 'L', 'L'), ('R', 'L', 'R'), ('R', 'R', 'R')],
+            [('L', 'L', 'L'), ('L', 'R', None), ('R', 'L', 'R'),
+             ('R', None, 'L'), (None, 'L', None), (None, None, None)],
             [('hh', 'bd', 'sn'), ('hh', 'sn', 'bd'), ('bd', 'hh', 'sn'),
              ('bd', 'sn', 'hh'), ('sn', 'hh', 'bd'), ('sn', 'bd', 'hh')],
             [False, True],
         )
-        items = [sorted(item) for item in items]
         expected_data = itertools.product(*items)
         expected = pd.DataFrame(data=expected_data, columns=input_cols)
         n_dict = {
@@ -136,9 +133,9 @@ class TestBlueprint(unittest.TestCase):
             np.random.seed(seed)
             expected_data['price'] = np.random.uniform(100, 250, n)
             np.random.seed(seed)
-            expected_data['brand'] = np.random.choice(['AMTA', 'REPAL', 'NOSOR'], n)
+            expected_data['brand'] = np.random.choice(['AMTA', 'REPAL', 'NOSOR', None], n)
             np.random.seed(seed)
-            expected_data['sick_pattern'] = [np.random.choice(['L', 'R'], 3) for _ in range(n)]
+            expected_data['sick_pattern'] = [np.random.choice(['L', 'R', None], 3) for _ in range(n)]
             np.random.seed(seed)
             expected_data['groove'] = [np.random.choice(['hh', 'bd', 'sn'], 3, replace=False)
                                        for _ in range(n)]

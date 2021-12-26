@@ -427,7 +427,7 @@ class Blueprint:
             ranges = [get_unique_linspace(gene) for gene in self._bp._dict]
             data = itertools.product(*ranges)
             columns = list(self._bp._dict)
-            data = pd.DataFrame(data=data, columns=columns, dtype=object)
+            data = pd.DataFrame(data=data, columns=columns)
             pop_data = self._bp.apply_constraints(data).drop_duplicates()
             return Population(pop_data, self._bp)
 
@@ -473,7 +473,7 @@ class Blueprint:
             """
             data_dict = {gene: self._bp.genes[gene].get_random(n, seed).tolist()
                          for gene in self._bp._dict}
-            data = pd.DataFrame(data_dict, dtype=object)
+            data = pd.DataFrame(data_dict)
             pop_data = self._bp.apply_constraints(data).drop_duplicates()
             return Population(pop_data, self._bp)
 

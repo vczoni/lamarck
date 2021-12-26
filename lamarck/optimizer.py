@@ -1,16 +1,17 @@
 from __future__ import annotations
 from typing import Callable
 from dataclasses import dataclass
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from tqdm.contrib.concurrent import thread_map
+from tqdm.contrib.concurrent import thread_map, process_map
 
 from lamarck.rankcalculator import RankCalculator
 from lamarck.population import Population
 from lamarck.reproduce import Populator
+from lamarck.simconfig import SimulationConfig, ParallelMode
 from lamarck.utils import objective_ascending_map, get_outputs
 
 
@@ -38,23 +39,13 @@ class Optimizer:
     │   └── simulation: concatenation of :population:, :results: and :fitness:
     ├── run()
     ├── run_multithread()
+    ├── run_multiprocess()
     ├── Criteria as apply_fitness
     │   ├── single_criteria()
     │   └── MultiCriteria as multi_criteria
     │       ├── ranked()
     │       └── pareto()
     ├── SimulationConfig as config
-    │   ├── max_generations
-    │   ├── max_stall
-    │   ├── p_selection
-    │   ├── n_dispute
-    │   ├── n_parents
-    │   ├── children_per_relation
-    │   ├── p_mutation
-    │   ├── max_mutated_genes
-    │   ├── children_per_mutation
-    │   ├── multithread
-    │   └── max_workers
     └── Simulator as simulate
         ├── single_criteria()
         └── MultiCriteriaSimulations as multi_criteria
@@ -267,27 +258,6 @@ class Optimizer:
             fitness_data = pd.concat(concat_data, axis=1)
             self._opt.datasets.assign_fitness(fitness_data)
 
-    @dataclass
-    class SimulationConfig:
-        """
-        Simulation configurations.
-        """
-        max_generations: int = 20
-        max_stall: int = 5
-        p_selection: float = 0.5
-        p_selection_weak: float = 0.
-        randomize_to_fill_pop: bool = False
-        n_dispute: int = 2
-        n_parents: int = 2
-        children_per_relation: int = 2
-        p_mutation: float = 0.05
-        max_mutated_genes: int = 1
-        children_per_mutation: int = 1
-        p_new_random: float = 0.
-        multithread: bool = True
-        max_workers: int | None = None
-        peek_champion_variables: list | None = None
-
     class Simulator:
         """
         Run genetic simulations by selecting a Fitness Criteria on selected output(s),
@@ -447,7 +417,7 @@ class Optimizer:
         self.set_population(population)
         self.apply_fitness = self.Criteria(self)
         self.rank_calculator = RankCalculator()
-        self.config = self.SimulationConfig()
+        self.config = SimulationConfig()
         self.simulate = self.Simulator(self)
 
     def _update_temp_data(self, outputs: list[str] | str, objectives: list[str] | str):
@@ -506,7 +476,7 @@ class Optimizer:
                         max_workers: int | None = None,
                         quiet: bool = False) -> None:
         """
-        Run the process for all genes in the Population.
+        Run the process for all genes in the Population with Multi Threading.
 
         Parameters
         ----------
@@ -535,6 +505,40 @@ class Optimizer:
                                               desc='Simulating Population',
                                               max_workers=max_workers)
         self.datasets.results = pd.concat(creature_result_list)
+
+    def run_multiprocess(self,
+                         max_workers: int | None = None,
+                         quiet: bool = False) -> None:
+        """
+        Run the process for all genes in the Population with Multi Processing.
+
+        Parameters
+        ----------
+        :max_workers:   Number of concurrent workers. If `None`, the algorithm will get the
+                        maximum possible (default: `None`).
+        :quiet:         If `False`, a bar will show the simulation progress (default: `False`).
+
+        Updates
+        -------
+        self.datasets.results DataFrame
+        """
+        iterable = self.datasets.population.iterrows()
+        if quiet:
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                creature_result_list = executor.map(self._sim_multiprocess, iterable)
+        else:
+            population_size = self.population.size
+            creature_result_list = process_map(self._sim_multiprocess,
+                                               iterable,
+                                               total=population_size,
+                                               position=1,
+                                               desc='Simulating Population',
+                                               max_workers=max_workers)
+        self.datasets.results = pd.concat(creature_result_list)
+
+    def _sim_multiprocess(self, x):
+        index, row = x
+        return pd.DataFrame(self.process(**row), index=pd.Series([index], name='id'))
 
 
 def select_fittest(ranked_pop_data: pd.DataFrame,
@@ -582,10 +586,14 @@ def run_sim(opt: Optimizer, quiet: bool) -> Optimizer:
     Creates a copy of the Optimizer and use it to run a simulation for later criteria
     selection.
     """
-    if opt.config.multithread:
-        opt.run_multithread(max_workers=opt.config.max_workers, quiet=quiet)
-    else:
+    if opt.config.parallel_processing == ParallelMode.OFF:
         opt.run(quiet=quiet)
+    elif opt.config.parallel_processing == ParallelMode.MULTITHREAD:
+        opt.run_multithread(max_workers=opt.config.max_workers, quiet=quiet)
+    elif opt.config.parallel_processing == ParallelMode.MULTIPROCESS:
+        opt.run_multiprocess(max_workers=opt.config.max_workers, quiet=quiet)
+    else:
+        raise Exception(f"Invalid config {opt.config.parallel_processing}.")
     return opt
 
 

@@ -248,17 +248,23 @@ mutated_offspring.data.head()
 
 ### 4.1. Configure simulation control vars
 ```python
+from lamarck.simconfig import ParallelMode
+
 opt.config.max_generations = 20
 opt.config.max_stall = 5
 opt.config.p_selection = 0.5
+opt.config.p_selection_weak = 0.
+opt.config.randomize_to_fill_pop = False
 opt.config.n_dispute = 2
 opt.config.n_parents = 2
 opt.config.children_per_relation = 2
-opt.config.p_mutation = 0.1
+opt.config.p_mutation = 0.05
 opt.config.max_mutated_genes = 1
 opt.config.children_per_mutation = 1
-opt.config.multithread = True
+opt.config.p_new_random = 0.
+opt.config.parallel_processing = ParallelMode.OFF
 opt.config.max_workers = None
+opt.config.peek_champion_variables = None
 ```
 
 ### 4.2. Define objectives and selection criteria for the simulations

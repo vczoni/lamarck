@@ -135,7 +135,8 @@ class TestBlueprint(unittest.TestCase):
             np.random.seed(seed)
             expected_data['brand'] = np.random.choice(['AMTA', 'REPAL', 'NOSOR', None], n)
             np.random.seed(seed)
-            expected_data['sick_pattern'] = [np.random.choice(['L', 'R', None], 3) for _ in range(n)]
+            expected_data['sick_pattern'] = [np.random.choice(['L', 'R', None], 3)
+                                             for _ in range(n)]
             np.random.seed(seed)
             expected_data['groove'] = [np.random.choice(['hh', 'bd', 'sn'], 3, replace=False)
                                        for _ in range(n)]

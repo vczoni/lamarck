@@ -1,6 +1,6 @@
 from toymodules.salesman import TravelSalesman
 from lamarck import BlueprintBuilder, Optimizer
-
+from lamarck.simconfig import ParallelMode
 
 builder = BlueprintBuilder()
 
@@ -36,7 +36,7 @@ process = process_deco(trav_salesman)
 opt = Optimizer(population=pop, process=process)
 
 # Activate MultiThreading (for better performance)
-opt.config.multithread = True
+opt.config.parallel_processing = ParallelMode.MULTITHREAD
 
 # peek best solution during runtime
 opt.config.peek_champion_variables = ['route', 'distance']

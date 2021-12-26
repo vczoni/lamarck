@@ -7,6 +7,7 @@ def my_process(x, y):
     val = np.sin(x)*x + np.sin(y)*y
     return {'val': val}
 
+
 # Building the Blueprint
 builder = BlueprintBuilder()
 # (note that 'x' and 'y' are declared, which are the exact same names as the
@@ -28,6 +29,7 @@ pop = popdet + poprnd
 opt = Optimizer(pop, my_process)
 
 # Simulate (this will return an optimized population)
+opt.config.set_parallel_processing(2)
 opt.simulate.single_criteria(output='val', objective='max')
 
 # Check the best solution

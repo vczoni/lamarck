@@ -3,6 +3,7 @@ import unittest
 import numpy as np
 from lamarck import BlueprintBuilder, Optimizer
 from lamarck.population import Population
+from lamarck.simconfig import ParallelMode
 
 from salesman import TravelSalesman
 
@@ -37,7 +38,7 @@ class TestOptimization(unittest.TestCase):
         opt = Optimizer(pop, my_process)
 
         # Simulate (this will return an optimized population)
-        opt.config.multithread = False
+        opt.config.parallel_processing = ParallelMode.OFF
         opt.simulate.single_criteria(output='val', objective='max')
 
         # Check the best solution
@@ -79,7 +80,7 @@ class TestOptimization(unittest.TestCase):
         opt = Optimizer(population=pop, process=process)
 
         # Activate MultiThreading (for better performance)
-        opt.config.multithread = True
+        opt.config.parallel_processing = ParallelMode.MULTITHREAD
 
         # Simulate (this will return an optimized population)
         opt.simulate.single_criteria(output='distance', objective='min')

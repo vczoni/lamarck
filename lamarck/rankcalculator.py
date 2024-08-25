@@ -143,7 +143,7 @@ def get_fronts(dominators):
 
 def get_crowd(df):
     s = pd.Series(np.zeros(len(df)), index=df.index)
-    for _, cs in df.iteritems():
+    for _, cs in df.items():
         infval = pd.Series([np.inf])
         si = pd\
             .concat([-infval, cs, infval])\

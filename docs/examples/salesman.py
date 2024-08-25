@@ -46,4 +46,4 @@ opt.simulate.single_criteria(output='distance', objective='min')
 
 # Check the best solution
 best_creature = opt.datasets.get_best_criature()
-print([print(f'{k}: {x}') for k, x in best_creature.iteritems()])
+print([print(f'{k}: {x}') for k, x in best_creature.items()])

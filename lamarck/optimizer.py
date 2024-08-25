@@ -679,7 +679,7 @@ def get_descriptor(config):
     else:
         def descriptor(opt, generation, n_stall):
             best_creature = opt.datasets.get_best_criature()
-            peek_info = best_creature[config.peek_champion_variables].iteritems()
+            peek_info = best_creature[config.peek_champion_variables].items()
             peek = ' | '.join([f'{feat}: {val}' for feat, val in peek_info])
             return f'Generation {generation} of {config.max_generations} '\
                    f'(stall: {n_stall} of {config.max_stall}) '\

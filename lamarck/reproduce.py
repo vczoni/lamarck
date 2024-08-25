@@ -42,7 +42,7 @@ def select_parents_by_tournament(ranked_pop_data: pd.DataFrame,
 
     parent_index = []
     for _ in range(n_parents):
-        valid_index = set(ranked_pop_data.index).difference(parent_index)
+        valid_index = list(set(ranked_pop_data.index).difference(parent_index))
         parent = select_parent(ranked_pop_data.loc[valid_index], n_dispute, rank_column)
         parent_index.append(parent.name)
     return ranked_pop_data.loc[parent_index]
@@ -100,7 +100,7 @@ class ChildGenerator:
         :seed:              Random Number Generator control (default: None).
         """
         np.random.seed(seed)
-        children_data = {gene: [val]*n_children for gene, val in parent_creature.iteritems()
+        children_data = {gene: [val]*n_children for gene, val in parent_creature.items()
                          if gene in gene_collection.names}
         for i_children in range(n_children):
             genes_to_mutate = np.random.choice(gene_collection, size=n_genes, replace=False)
